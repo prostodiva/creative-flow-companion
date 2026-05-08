@@ -23,12 +23,15 @@ const StateAnnotation = Annotation.Root({
   workVideoMs: Annotation<number>(),
   shouldIntervene: Annotation<boolean>(),
   interventionPrompt: Annotation<string | undefined>(),
+  recentFiles: Annotation<string[]>(),
+  gitDiffSummary: Annotation<string>(),
+  todoList: Annotation<string[]>(),
 })
 
 type TState = typeof StateAnnotation.State
 
 let lastInterventionTs = 0
-const COOLDOWN_MS = 10 * 60 * 1000
+const COOLDOWN_MS = config.INTERVENTION_COOLDOWN_MS
 
 function createNodes(deps: OrchestratorDeps) {
   const { appRepo, ideRepo, interventionService } = deps
@@ -38,13 +41,16 @@ function createNodes(deps: OrchestratorDeps) {
     const oneHourAgo = now - 60 * 60 * 1000
     const fiveMinAgo = now - 5 * 60 * 1000
 
-    const [tabs, lastCommit, keystrokes, currentApp, entertainmentVideoMs, workVideoMs] = await Promise.all([
+    const [tabs, lastCommit, keystrokes, currentApp, entertainmentVideoMs, workVideoMs, recentFiles, gitDiffSummary, todoList  ] = await Promise.all([
       appRepo.getChromeTabCount(now - 60000),
       ideRepo.getLastCommitTs(),
       ideRepo.getKeystrokeCountSince(fiveMinAgo),
       appRepo.getCurrentApp(),
       appRepo.getVideoConsumptionMs(oneHourAgo, now, 'entertainment'),
-      appRepo.getVideoConsumptionMs(oneHourAgo, now, 'work') 
+      appRepo.getVideoConsumptionMs(oneHourAgo, now, 'work') ,
+      ideRepo.getRecentlyTouchedFiles(3), 
+    ideRepo.getGitDiffSummary(),        
+    ideRepo.getTodoComments()     
     ])
 
     const chromeTabCount = tabs ?? 0
@@ -53,16 +59,31 @@ function createNodes(deps: OrchestratorDeps) {
     const activeApp = currentApp ?? 'Unknown'
 
     const shouldIntervene =
-      entertainmentVideoMs >= 1 * 60 * 1000 || 
-      (lastCommitMinutes > 10 && chromeTabCount >= 10 && keystrokesLast5Min === 0)
+  entertainmentVideoMs >= config.VIDEO_IDLE_MINUTES * 60 * 1000 || 
+  (lastCommitMinutes > config.COMMIT_IDLE_MINUTES &&
+    chromeTabCount >= config.TAB_OVERLOAD_THRESHOLD &&
+    keystrokesLast5Min === 0)
 
-    logger.info({ 
-      chromeTabCount, 
-      lastCommitMinutes, 
-      keystrokesLast5Min,
-      entertainmentMin: Math.floor(entertainmentVideoMs / 60000),
-      workMin: Math.floor(workVideoMs / 60000)
-    }, 'Telemetry check')
+// Add this log right after
+console.log('SHOULD_INTERVENE:', shouldIntervene, {
+  entertainmentVideoMs,
+  threshold: config.VIDEO_IDLE_MINUTES * 60 * 1000,
+  entMin: Math.floor(entertainmentVideoMs / 60000),
+  lastCommitMinutes,
+  commitThreshold: config.COMMIT_IDLE_MINUTES,
+  chromeTabCount,
+  tabThreshold: config.TAB_OVERLOAD_THRESHOLD,
+  keystrokesLast5Min
+})
+
+logger.info({ 
+  chromeTabCount, 
+  lastCommitMinutes, 
+  keystrokesLast5Min,
+  entertainmentMin: Math.floor(entertainmentVideoMs / 60000),
+  workMin: Math.floor(workVideoMs / 60000),
+  shouldIntervene  // add this
+}, 'Telemetry check')
 
     return { 
       chromeTabCount, 
@@ -71,43 +92,68 @@ function createNodes(deps: OrchestratorDeps) {
       activeApp, 
       entertainmentVideoMs,
       workVideoMs,
-      shouldIntervene 
+      shouldIntervene,
+      recentFiles: recentFiles ?? [],
+        gitDiffSummary: gitDiffSummary ?? 'No changes',
+     todoList: todoList ?? []
     }
   }
 
   async function buildPrompt(state: TState): Promise<Partial<TState>> {
-    if (!state.shouldIntervene) return {}
-
-    const entMin = Math.floor(state.entertainmentVideoMs / 60000)
-    const workMin = Math.floor(state.workVideoMs / 60000)
-    const isVideoTrigger = entMin >= 1
-    
-    const trigger = isVideoTrigger
-      ? `Watched ${entMin}m entertainment video, ${workMin}m work video in last hour`
-      : `${state.chromeTabCount} Chrome tabs open, ${state.lastCommitMinutes}m since last git commit, 0 keystrokes in 5m`
-
-    const prompt = `You are a brutal productivity coach. User is in distraction loop.
-
-DATA: ${trigger}
-APP: ${state.activeApp}
-
-Rules:
-1. Give exactly 1 physical action they can do in 30 seconds
-2. Max 15 words
-3. No "try to", "consider", "maybe". Use commands.
-4. Reference their actual data
-
-Examples:
-"Close YouTube tab. Type git commit -m 'resume' now."
-"Cmd+W 8 tabs. Open VSCode and type 1 comment."
-
-Your command:`
-
-    return { interventionPrompt: prompt }
+  console.log('PROMPT NODE: entered, shouldIntervene=', state.shouldIntervene)
+  
+  if (!state.shouldIntervene) {
+    console.log('PROMPT NODE: skipped - shouldIntervene false')
+    return {}
   }
 
-  async function callLlama(state: TState): Promise<Partial<TState>> {
-    if (!state.interventionPrompt) return {}
+  console.log('PROMPT NODE: building prompt')
+  
+  const entMin = Math.floor(state.entertainmentVideoMs / 60000)
+  const isVideoTrigger = entMin >= 1
+  
+  const behavioralContext = isVideoTrigger
+    ? `Avoiding work: ${entMin}m entertainment video watched`
+    : `Task paralysis: ${state.chromeTabCount} tabs open, ${state.lastCommitMinutes}m no commits, 0 keystrokes`
+
+  const prompt = `You are a flow-state coach using CBT techniques.
+
+CONTEXT:
+Behavior: ${behavioralContext}
+Active app: ${state.activeApp}
+Recent files: ${state.recentFiles.join(', ') || 'None'}
+Git status: ${state.gitDiffSummary}
+TODOs in code: ${state.todoList.slice(0,2).join(' | ') || 'None'}
+
+YOUR JOB:
+1. DIAGNOSE the pattern. Is this anxiety avoidance, perfectionism, overwhelm, or decision fatigue? Use the file/git context to infer what they were working on.
+2. SHRINK the task. Pick ONE file from "Recent files" or "Git status". Give a 15min micro-sprint on just that file.
+
+RULES:
+- Max 20 words total
+- Format: "[Pattern]: 15min sprint on [file] - [tiny action]"
+- Be specific to their actual files, not generic
+
+Examples:
+"Anxiety avoidance: 15min sprint on Player.cs - add 1 method stub"
+"Overwhelm: 15min sprint on UiManager.cs - delete 1 dead function"
+
+Your diagnosis + task:`
+
+  console.log('PROMPT NODE: returning prompt length=', prompt.length)
+  return { interventionPrompt: prompt }
+}
+
+async function callLlama(state: TState): Promise<Partial<TState>> {
+  console.log('LLAMA NODE: entered, hasPrompt=', !!state.interventionPrompt)
+  
+  if (!state.interventionPrompt) {
+    console.log('LLAMA NODE: skipped - no prompt')
+    return {}
+  }
+  
+  console.log('LLAMA NODE: calling Ollama...')
+
     
     const now = Date.now()
     if (now - lastInterventionTs < COOLDOWN_MS) {
@@ -117,8 +163,8 @@ Your command:`
 
     try {
       const llm = new Ollama({
-        baseUrl: config.get().OLLAMA_BASE_URL,
-        model: config.get().OLLAMA_MODEL,
+        baseUrl: config.OLLAMA_BASE_URL,
+        model: config.OLLAMA_MODEL,
         temperature: 0.9
       })
 
@@ -169,9 +215,8 @@ Your command:`
     buildPrompt,
     callLlama
   }
-} // <- close createNodes here
+} 
 
-// This was nested inside createNodes by mistake
 function createOrchestrator(deps: OrchestratorDeps) {
   const { checkTelemetry, buildPrompt, callLlama } = createNodes(deps)
 
@@ -180,7 +225,10 @@ function createOrchestrator(deps: OrchestratorDeps) {
     .addNode('prompt', buildPrompt)
     .addNode('intervene', callLlama)
     .addEdge(START, 'check')
-    .addConditionalEdges('check', (state) => state.shouldIntervene ? 'prompt' : END)
+    .addConditionalEdges('check', (state) => {
+      console.log('EDGE EVALUATED: shouldIntervene=', state.shouldIntervene)
+      return state.shouldIntervene ? 'prompt' : '__end__'
+    })
     .addEdge('prompt', 'intervene')
     .addEdge('intervene', END)
 

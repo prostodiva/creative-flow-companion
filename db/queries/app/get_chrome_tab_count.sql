@@ -1,8 +1,5 @@
-SELECT chrome_tab_count as count
+SELECT COALESCE(MAX(chrome_tab_count), 0) as count
 FROM app_activity
-WHERE app = 'Google Chrome'
-  AND ts > ?
-  AND chrome_tab_count IS NOT NULL
-ORDER BY ts DESC
-LIMIT 1;
+WHERE ts > ?
+  AND chrome_tab_count > 0;
 

@@ -1,7 +1,6 @@
 import { WebSocketServer, type WebSocket } from 'ws';
 import notifier from 'node-notifier';
 import { randomUUID } from 'node:crypto';
-import { config } from './config.js';
 import { logger } from './logger.js';
 import { interventionsFired } from './metrics.js';
 
@@ -24,7 +23,7 @@ export class InterventionService {
   private readonly _clients = new Set<WebSocket>();
 
   start(): void {
-    const port = config.get().INTERVENTION_PORT;
+    const port = Number(process.env.INTERVENTION_PORT) || 8001;
 
     this._wss = new WebSocketServer({
       host: '127.0.0.1', // Never 0.0.0.0

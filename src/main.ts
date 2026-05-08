@@ -1,3 +1,4 @@
+import 'dotenv/config' 
 import Database from 'better-sqlite3'
 import { existsSync, unlinkSync } from 'fs'
 import { AppRepo } from './repos/app.repo.js'
@@ -8,9 +9,10 @@ import { IdeSensor } from './sensors/ide/ide.sensor.js'
 import { startOrchestrationLoop } from './core/orchestrator.js'
 import { logger } from './core/logger.js'
 import { runMigrations } from './db/migrate.js'
-import { config } from './core/config.js'
+import os from 'node:os'
+import path from 'node:path'
 
-const DB_PATH = config.get().CONTEXT_DB_PATH
+const DB_PATH = path.join(os.homedir(), '.flow-agent', 'context.db')
 
 // Delete if corrupt/empty
 if (existsSync(DB_PATH)) {

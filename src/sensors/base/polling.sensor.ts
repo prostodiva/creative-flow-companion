@@ -1,8 +1,6 @@
 import { Sensor, type SensorHealth } from './sensor.js';
-import { config } from '../../core/config.js';
 import { logger } from '../../core/logger.js';
 import { sensorTicksTotal, sensorErrorsTotal } from '../../core/metrics.js';
-import type { AppConfig } from '../../core/config.js';
 
 // ---- Configuration ---------------------------------------------------------
 
@@ -31,7 +29,7 @@ export abstract class PollingSensor<T> extends Sensor {
 
   /** Override to provide a sensor-specific interval; falls back to config */
   protected get intervalMs(): number {
-    return config.get().POLL_INTERVAL_MS;
+    return Number(process.env.POLL_INTERVAL_MS) || 2000;
   }
 
   protected get batchSize(): number {
@@ -59,8 +57,6 @@ export abstract class PollingSensor<T> extends Sensor {
     this._pollTimer = setInterval(() => void this._tick(), this.intervalMs);
     this._flushTimer = setInterval(() => void this._triggerFlush(), this.flushIntervalMs);
 
-    // Hot-reload: restart interval if POLL_INTERVAL_MS changes
-    config.on('change', (cfg: AppConfig) => this._onConfigChange(cfg));
   }
 
   stop(): void {
@@ -125,19 +121,6 @@ export abstract class PollingSensor<T> extends Sensor {
       // Return items to front of batch to retry
       this._batch.unshift(...toFlush);
     }
-  }
-
-  private _onConfigChange(cfg: AppConfig): void {
-    // Only restart if this sensor uses the global interval
-    if (this.intervalMs !== cfg.POLL_INTERVAL_MS) return;
-    if (!this._pollTimer) return;
-
-    clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => void this._tick(), cfg.POLL_INTERVAL_MS);
-    logger.info(
-      { sensor: this.name, intervalMs: cfg.POLL_INTERVAL_MS },
-      'Poll interval updated'
-    );
   }
 
   // Expose for testing

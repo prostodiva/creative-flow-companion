@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3'
 import { loadSql } from '../db/sql.js'
+import { getGitDiffSummary, getTodoComments } from '../core/git-intel.js'
 
 export interface IdeEvent {
   ts: number
@@ -23,6 +24,7 @@ export class IdeRepo {
     getRecentEvents: loadSql('queries/ide/get_recent_events.sql'),
     getLastCommitTs: loadSql('queries/ide/get_last_commit_ts.sql'),
     getKeystrokeCountSince: loadSql('queries/ide/get_keystroke_count_since.sql'),
+    getRecentlyTouchedFiles: loadSql('queries/ide/get_recently_touched_files.sql'),
     upsertLastCommitTs: loadSql('queries/ide/upsert_last_commit_ts.sql'),
   }
 
@@ -77,4 +79,22 @@ export class IdeRepo {
   upsertLastCommit(ts: number): void {
     this.db.prepare(this._sql.upsertLastCommitTs).run([ts.toString()])
   }
+
+  async getRecentlyTouchedFiles(limit: number): Promise<string[]> {
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    const rows = this.db
+      .prepare(this._sql.getRecentlyTouchedFiles)
+      .all([cutoff, limit]) as { file: string }[];
+
+    return rows.map((r) => r.file.split('/').pop() ?? r.file);
+  }
+
+  async getGitDiffSummary(): Promise<string> {
+    return await getGitDiffSummary(process.cwd());
+  }
+
+  async getTodoComments(): Promise<string[]> {
+    return await getTodoComments(process.cwd());
+  }
+    
 }

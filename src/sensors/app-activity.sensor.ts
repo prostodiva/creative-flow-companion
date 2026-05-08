@@ -14,7 +14,7 @@ const WORK_DOMAINS = new Set([
 ])
 
 const WORK_KEYWORDS = ['tutorial','course','lecture','react','typescript','python','aws','kubernetes','algorithm']
-const ENT_KEYWORDS = ['netflix','movie','episode','anime','trailer','tv show']
+const ENT_KEYWORDS = ['netflix','movie','episode','anime','trailer','tv show','documentary']
 
 export class AppActivitySensor extends Sensor {
   readonly name = 'app-activity'
@@ -23,8 +23,8 @@ export class AppActivitySensor extends Sensor {
   private errorCount = 0
   private lastTickAt: number | null = null
   private llm = new Ollama({
-    baseUrl: config.get().OLLAMA_BASE_URL,
-    model: config.get().OLLAMA_MODEL,
+    baseUrl: config.OLLAMA_BASE_URL,
+    model: config.OLLAMA_MODEL,
     temperature: 0,
   })
 
@@ -74,56 +74,58 @@ export class AppActivitySensor extends Sensor {
   }
 
   protected async poll(): Promise<void> {
-    const now = Date.now()
-    const { app, title, domain, fullscreen, audible, chromeTabCount } = await this.getActiveWindow()
+  const now = Date.now()
+  const { app, title, domain, fullscreen, audible, chromeTabCount } = await this.getActiveWindow()
+  
+  // Calculate duration since last poll
+  const duration_ms = now - this.lastTs
+  
+  // Always save the PREVIOUS state if we have one
+  if (this.lastApp && duration_ms > 0) {
+    let category = await this.appRepo.getCachedCategory(this.lastTitle, this.lastDomain || undefined)
     
-    const chromeTabsChanged =
-      app === 'Google Chrome' &&
-      this.lastApp === 'Google Chrome' &&
-      chromeTabCount !== this.lastChromeTabCount
-
-    if (app === this.lastApp && title === this.lastTitle && !chromeTabsChanged) {
-      return
-    }
-    
-    const duration_ms = now - this.lastTs
-    
-    if (this.lastApp) {
-      let category = await this.appRepo.getCachedCategory(this.lastTitle, this.lastDomain || undefined)
+    if (!category) {
+      category = this.appRepo.classifyTitle(this.lastTitle, this.lastDomain)
       
-      if (!category) {
-        category = this.appRepo.classifyTitle(this.lastTitle, this.lastDomain)
-        
-        if (this.lastApp === 'Google Chrome' && this.lastFullscreen && this.lastAudible) {
-          category = await this.classifyVideo(this.lastTitle, this.lastDomain || undefined)
-        }
-        
-        await this.appRepo.cacheCategory(this.lastTitle, this.lastDomain || undefined, category)
+      // Classify video if Chrome tab has audio, regardless of fullscreen
+      if (this.lastApp === 'Google Chrome' && this.lastAudible) {
+        category = await this.classifyVideo(this.lastTitle, this.lastDomain || undefined)
       }
       
-      await this.appRepo.insertMany([{
-        ts: this.lastTs,
-        app: this.lastApp,
-        title: this.lastTitle,
-        domain: this.lastDomain || null,  // Convert null to null explicitly
-        is_fullscreen: this.lastFullscreen,
-        has_audio: this.lastAudible,
-        category: category || null,  // Convert undefined to null
-        duration_ms,
-        chrome_tab_count: this.lastApp === 'Google Chrome' ? this.lastChromeTabCount : null
-      }])
-      
-      logger.debug({ app: this.lastApp, title: this.lastTitle, domain: this.lastDomain, category, duration_ms }, 'Saved activity')
+      await this.appRepo.cacheCategory(this.lastTitle, this.lastDomain || undefined, category)
     }
     
-    this.lastApp = app
-    this.lastTitle = title
-    this.lastDomain = domain  // domain is string | null, matches field type
-    this.lastFullscreen = fullscreen
-    this.lastAudible = audible
-    this.lastChromeTabCount = chromeTabCount
-    this.lastTs = now
+    await this.appRepo.insertMany([{
+      ts: this.lastTs,
+      app: this.lastApp,
+      title: this.lastTitle,
+      domain: this.lastDomain || null,
+      is_fullscreen: this.lastFullscreen,
+      has_audio: this.lastAudible,
+      category: category || null,
+      duration_ms,
+      chrome_tab_count: this.lastApp === 'Google Chrome' ? this.lastChromeTabCount : null
+    }])
+    
+    logger.debug({ 
+      app: this.lastApp, 
+      title: this.lastTitle?.slice(0,30), 
+      domain: this.lastDomain, 
+      audible: this.lastAudible,
+      category, 
+      duration_ms 
+    }, 'Saved activity')
   }
+  
+  // Update state for next tick
+  this.lastApp = app
+  this.lastTitle = title
+  this.lastDomain = domain
+  this.lastFullscreen = fullscreen
+  this.lastAudible = audible
+  this.lastChromeTabCount = chromeTabCount
+  this.lastTs = now
+}
 
 
   private async getActiveWindow(): Promise<{ 
@@ -143,7 +145,6 @@ export class AppActivitySensor extends Sensor {
       set winTitle to ""
       set tabUrl to ""
       set isFull to false
-      set isAudible to false
       set tabCount to 0
       
       if frontApp is "Google Chrome" then
@@ -154,9 +155,6 @@ export class AppActivitySensor extends Sensor {
             end try
             try
               set tabUrl to URL of active tab of front window
-            end try
-            try
-              set isAudible to audible of active tab of front window
             end try
             try
               set isFull to fullscreen of front window
@@ -178,23 +176,21 @@ export class AppActivitySensor extends Sensor {
             try
               set tabUrl to URL of current tab of front window
             end try
-          end if
-        end tell
-      else
-        tell application "System Events"
-          tell process frontApp
             try
-              set winTitle to name of front window
+              set tabCount to 0
+              repeat with w in windows
+                set tabCount to tabCount + (count of tabs of w)
+              end repeat
             end try
-          end tell
+          end if
         end tell
       end if
       
-      return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & isAudible & "|||" & tabCount
+      return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & tabCount
     `
     
     const { stdout } = await execFileAsync('osascript', ['-e', script])
-    const [app, title, url, fullStr, audStr, tabCountStr] = stdout.trim().split('|||')
+    const [app, title, url, fullStr, tabCountStr] = stdout.trim().split('|||')
     
     let domain: string | null = null
     if (url && url !== 'missing value' && url !== '') {
@@ -202,6 +198,10 @@ export class AppActivitySensor extends Sensor {
         domain = new URL(url).hostname.replace('www.', '') 
       } catch {}
     }
+
+    // Domain-based audio detection works for both browsers
+    const VIDEO_DOMAINS = ['netflix.com', 'youtube.com', 'hulu.com', 'disneyplus.com', 'primevideo.com', 'twitch.tv', 'vimeo.com']
+    const audible = domain ? VIDEO_DOMAINS.some(d => domain.includes(d)) : false
 
     const chromeTabCount =
       app === 'Google Chrome'
@@ -213,7 +213,7 @@ export class AppActivitySensor extends Sensor {
       title: title || '',
       domain,
       fullscreen: fullStr === 'true',
-      audible: audStr === 'true',
+      audible,
       chromeTabCount,
     }
   } catch (err) {
@@ -221,38 +221,39 @@ export class AppActivitySensor extends Sensor {
     return { app: 'unknown', title: '', domain: null, fullscreen: false, audible: false, chromeTabCount: null }
   }
 }
+
       
     
   private async classifyVideo(title: string, domain?: string): Promise<string> {
-    const cached = await this.appRepo.getCachedCategory(title, domain)
-    if (cached) return cached
+  const cached = await this.appRepo.getCachedCategory(title, domain)
+  if (cached) return cached
 
-    const text = `${title} ${domain ?? ''}`.toLowerCase()
-    if (domain && WORK_DOMAINS.has(domain) && WORK_KEYWORDS.some(k => text.includes(k))) {
-      await this.appRepo.cacheCategory(title, domain, 'work_video')
-      return 'work_video'
-    }
-
-    const workScore = WORK_KEYWORDS.filter(k => text.includes(k)).length
-    const entScore = ENT_KEYWORDS.filter(k => text.includes(k)).length
-    
-    if (workScore > entScore && workScore > 0) {
-      await this.appRepo.cacheCategory(title, domain, 'work_video')
-      return 'work_video'
-    }
-    if (entScore > 0) {
-      await this.appRepo.cacheCategory(title, domain, 'entertainment_video')
-      return 'entertainment_video'
-    }
-
-    try {
-      const prompt = `Title: "${title}"\nDomain: ${domain ?? 'unknown'}\n\nIs this educational/work content or entertainment? Reply one word: work or entertainment.`
-      const result = await this.llm.invoke(prompt)
-      const category = result.toLowerCase().includes('work') ? 'work_video' : 'entertainment_video'
-      await this.appRepo.cacheCategory(title, domain, category)
-      return category
-    } catch {
-      return 'entertainment_video'
-    }
+  const text = `${title} ${domain ?? ''}`.toLowerCase()
+  if (domain && WORK_DOMAINS.has(domain) && WORK_KEYWORDS.some(k => text.includes(k))) {
+    await this.appRepo.cacheCategory(title, domain, 'work') // <- changed from 'work_video'
+    return 'work'
   }
+
+  const workScore = WORK_KEYWORDS.filter(k => text.includes(k)).length
+  const entScore = ENT_KEYWORDS.filter(k => text.includes(k)).length
+  
+  if (workScore > entScore && workScore > 0) {
+    await this.appRepo.cacheCategory(title, domain, 'work') // <- changed
+    return 'work'
+  }
+  if (entScore > 0) {
+    await this.appRepo.cacheCategory(title, domain, 'entertainment') // <- changed
+    return 'entertainment'
+  }
+
+  try {
+    const prompt = `Title: "${title}"\nDomain: ${domain ?? 'unknown'}\n\nIs this educational/work content or entertainment? Reply one word: work or entertainment.`
+    const result = await this.llm.invoke(prompt)
+    const category = result.toLowerCase().includes('work')? 'work' : 'entertainment' // <- changed
+    await this.appRepo.cacheCategory(title, domain, category)
+    return category
+  } catch {
+    return 'entertainment' 
+  }
+}
 }

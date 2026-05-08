@@ -1,5 +1,3 @@
-import { config } from '../core/config.js';
-
 const MAX_LEN = 200;
 
 /**
@@ -11,15 +9,26 @@ const MAX_LEN = 200;
 export function redact(input: string): string {
   if (!input) return '';
 
+  const patterns = (process.env.REDACT_PATTERNS ?? 'password,secret,token')
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => new RegExp(p, 'gi'));
+
+  const paths = (process.env.REDACT_PATHS ?? '/home,/Users')
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   let out = input.slice(0, MAX_LEN * 4); // work on a reasonable slice before patterns
 
   // Apply regex patterns (e.g. "password", "token")
-  for (const pattern of config.redactPatterns) {
+  for (const pattern of patterns) {
     out = out.replace(pattern, '[REDACTED]');
   }
 
   // Redact recognised path prefixes
-  for (const prefix of config.redactPaths) {
+  for (const prefix of paths) {
     if (!prefix) continue;
     const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pathRe = new RegExp(`${escaped}[^\\s"']*`, 'g');

@@ -68,22 +68,28 @@ export class AppRepo {
     insert(activities)
   }
 
- async getVideoConsumptionMs(fromMs: number, toMs: number, category?: string): Promise<number> {
-  // Remove fullscreen + audio requirement for entertainment
-  const params: unknown[] = [fromMs, toMs]
-
+async getVideoConsumptionMs(fromMs: number, toMs: number, category?: string): Promise<number> {
   if (category) {
-    // Match both 'entertainment' and 'entertainment_video'
-    params.push(category, category.replace('_video', ''))
-    const row = this.db
-      .prepare(this._sql.getVideoConsumptionTotalByCategory)
-      .get(params) as { total: number } | undefined
+    const stmt = this.db.prepare(`
+      SELECT COALESCE(SUM(duration_ms), 0) as total
+      FROM app_activity 
+      WHERE ts > ? 
+        AND ts <= ? 
+        AND has_audio = 1 
+        AND category = ?
+    `)
+    const row = stmt.get(fromMs, toMs, category) as { total: number } | undefined
     return row?.total ?? 0
   }
   
-  const row = this.db.prepare(this._sql.getVideoConsumptionTotal).get(params) as
-    | { total: number }
-    | undefined
+  const stmt = this.db.prepare(`
+    SELECT COALESCE(SUM(duration_ms), 0) as total
+    FROM app_activity 
+    WHERE ts > ? 
+      AND ts <= ? 
+      AND has_audio = 1
+  `)
+  const row = stmt.get(fromMs, toMs) as { total: number } | undefined
   return row?.total ?? 0
 }
 
