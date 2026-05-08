@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import os from 'node:os';  // ADD THIS
-import path from 'node:path';  // ADD THIS
+import os from 'node:os';
+import path from 'node:path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -11,9 +11,12 @@ import { z } from 'zod';
 const ConfigSchema = z.object({
   DB_KEY: z.string().min(16, 'DB_KEY must be at least 16 characters'),
   DB_PATH: z.string().default('./data/flow.db'),
+  CONTEXT_DB_PATH: z.string().default('~/.flow-agent/context.db'),
   LOG_LEVEL: z
     .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
     .default('info'),
+  OLLAMA_BASE_URL: z.string().default('http://localhost:11434'),
+  OLLAMA_MODEL: z.string().default('llama3.1:8b'),
   POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
   RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   REDACT_PATTERNS: z.string().default('password,secret,token'),
@@ -58,9 +61,9 @@ class ConfigManager extends EventEmitter {
       throw new Error(`Invalid configuration:\n${issues}`);
     }
     
-    // EXPAND PATH HERE
     const cfg = result.data;
     cfg.DB_PATH = expandPath(cfg.DB_PATH);
+    cfg.CONTEXT_DB_PATH = expandPath(cfg.CONTEXT_DB_PATH);
     
     return cfg;
   }

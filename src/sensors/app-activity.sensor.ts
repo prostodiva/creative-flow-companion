@@ -1,11 +1,12 @@
 import { Sensor, type SensorHealth } from './base/sensor.js'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { Ollama } from '@langchain/ollama'
 import type { AppRepo } from '../repos/app.repo.js'
 import { logger } from '../core/logger.js'
+import { config } from '../core/config.js'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 const WORK_DOMAINS = new Set([
   'youtube.com','egghead.io','frontendmasters.com','pluralsight.com',
@@ -21,7 +22,11 @@ export class AppActivitySensor extends Sensor {
   private tickCount = 0
   private errorCount = 0
   private lastTickAt: number | null = null
-  private llm = new Ollama({ baseUrl: 'http://localhost:11434', model: 'llama3.1:8b', temperature: 0 })
+  private llm = new Ollama({
+    baseUrl: config.get().OLLAMA_BASE_URL,
+    model: config.get().OLLAMA_MODEL,
+    temperature: 0,
+  })
 
   // State for tracking window changes
   private lastApp = ''
@@ -172,7 +177,7 @@ export class AppActivitySensor extends Sensor {
       return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & isAudible
     `
     
-    const { stdout } = await execAsync(`osascript -e '${script}'`)
+    const { stdout } = await execFileAsync('osascript', ['-e', script])
     const [app, title, url, fullStr, audStr] = stdout.trim().split('|||')
     
     let domain: string | null = null

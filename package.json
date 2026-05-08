@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && node scripts/copy-db-assets.mjs",
     "dev": "node --import=tsx src/main.ts",
     "test": "vitest run",
     "test:watch": "vitest",

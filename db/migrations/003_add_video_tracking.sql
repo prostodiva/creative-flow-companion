@@ -1,3 +1,4 @@
+-- up
 ALTER TABLE app_activity ADD COLUMN domain TEXT;
 ALTER TABLE app_activity ADD COLUMN is_fullscreen INTEGER DEFAULT 0;
 ALTER TABLE app_activity ADD COLUMN has_audio INTEGER DEFAULT 0;
@@ -14,3 +15,6 @@ CREATE TABLE IF NOT EXISTS title_classifications (
   category TEXT NOT NULL,
   classified_at INTEGER NOT NULL
 );
+
+-- down
+-- SQLite cannot drop columns without table rebuild; keep as no-op.

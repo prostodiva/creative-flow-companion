@@ -3,11 +3,11 @@ import { IpcServer } from '../ide/ipc.js';
 import type { IdeRepo } from '../../repos/ide.repo.js';
 import { redact } from '../../utils/redact.js';
 import { logger } from '../../core/logger.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ---- Types -----------------------------------------------------------------
 
@@ -71,9 +71,9 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
     // Don't poll active window here - AppActivitySensor does that
     // Only poll git for last commit timestamp
     try {
-      const { stdout } = await execAsync('git log -1 --format=%ct', { 
+      const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%ct'], {
         cwd: process.cwd(),
-        timeout: 2000 
+        timeout: 2000,
       }).catch(() => ({ stdout: '0' }));
       
       const commitTs = parseInt(stdout.trim()) * 1000;

@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3'
 import { createHash } from 'crypto'
+import { loadSql } from '../db/sql.js'
 
 export interface AppActivity {
   id?: number
@@ -20,6 +21,18 @@ export interface AppSummaryRow {
 }
 
 export class AppRepo {
+  private readonly _sql = {
+    insertAppActivity: loadSql('queries/app/insert_app_activity.sql'),
+    getVideoConsumptionTotal: loadSql('queries/app/get_video_consumption_total.sql'),
+    getVideoConsumptionTotalByCategory: loadSql('queries/app/get_video_consumption_total_by_category.sql'),
+    getChromeTabCount: loadSql('queries/app/get_chrome_tab_count.sql'),
+    getCurrentApp: loadSql('queries/app/get_current_app.sql'),
+    getSummary: loadSql('queries/app/get_summary.sql'),
+    getRecentActivity: loadSql('queries/app/get_recent_activity.sql'),
+    getCachedCategory: loadSql('queries/app/get_cached_category.sql'),
+    upsertTitleClassification: loadSql('queries/app/upsert_title_classification.sql'),
+  }
+
   constructor(private db: Database) {}
 
   classifyTitle(title: string, domain: string | null): string {
@@ -40,10 +53,7 @@ export class AppRepo {
 }
 
   async insertMany(activities: AppActivity[]): Promise<void> {
-    const stmt = this.db.prepare(
-      `INSERT INTO app_activity (ts, app, title, domain, is_fullscreen, has_audio, category, duration_ms)
-       VALUES (?,?,?,?,?,?,?,?)`
-    )
+    const stmt = this.db.prepare(this._sql.insertAppActivity)
     const insert = this.db.transaction((acts: AppActivity[]) => {
       for (const a of acts) {
         stmt.run([
@@ -58,63 +68,59 @@ export class AppRepo {
 
  async getVideoConsumptionMs(fromMs: number, toMs: number, category?: string): Promise<number> {
   // Remove fullscreen + audio requirement for entertainment
-  let query = `SELECT COALESCE(SUM(duration_ms), 0) AS total
-     FROM app_activity
-     WHERE ts BETWEEN ? AND ?`
-  
-  const params: any[] = [fromMs, toMs]
-  
+  const params: unknown[] = [fromMs, toMs]
+
   if (category) {
     // Match both 'entertainment' and 'entertainment_video'
-    query += ` AND category IN (?, ?)`
     params.push(category, category.replace('_video', ''))
+    const row = this.db
+      .prepare(this._sql.getVideoConsumptionTotalByCategory)
+      .get(params) as { total: number } | undefined
+    return row?.total ?? 0
   }
   
-  const row = this.db.prepare(query).get(params) as { total: number }
+  const row = this.db.prepare(this._sql.getVideoConsumptionTotal).get(params) as
+    | { total: number }
+    | undefined
   return row?.total ?? 0
 }
 
   async getChromeTabCount(fromMs: number): Promise<number> {
-    const row = this.db.prepare(
-      `SELECT COUNT(*) as count FROM app_activity 
-       WHERE app = 'Google Chrome' AND ts >?`
-    ).get([fromMs]) as { count: number }
+    const row = this.db.prepare(this._sql.getChromeTabCount).get([fromMs]) as
+      | { count: number }
+      | undefined
     return row?.count?? 0
   }
 
   async getCurrentApp(): Promise<string | null> {
-    const row = this.db.prepare(
-      `SELECT app FROM app_activity ORDER BY ts DESC LIMIT 1`
-    ).get() as { app: string } | undefined
+    const row = this.db.prepare(this._sql.getCurrentApp).get() as { app: string } | undefined
     return row?.app?? null
   }
 
   async getSummary(fromMs: number, toMs: number): Promise<AppSummaryRow[]> {
-    return this.db.prepare(
-      `SELECT app, SUM(duration_ms) as total_ms, COUNT(*) as tab_count
-       FROM app_activity WHERE ts BETWEEN? AND? GROUP BY app`
-    ).all([fromMs, toMs]) as AppSummaryRow[]
+    return this.db.prepare(this._sql.getSummary).all([fromMs, toMs]) as AppSummaryRow[]
   }
 
   async getRecentActivity(limit: number): Promise<AppActivity[]> {
-    return this.db.prepare(
-      `SELECT * FROM app_activity ORDER BY ts DESC LIMIT?`
-    ).all([limit]) as AppActivity[]
+    return this.db.prepare(this._sql.getRecentActivity).all([limit]) as AppActivity[]
   }
 
   async getCachedCategory(title: string, domain?: string): Promise<string | null> {
     const hash = createHash('sha256').update(`${title}|${domain?? ''}`).digest('hex')
-    const row = this.db.prepare(
-      `SELECT category FROM title_classifications WHERE title_hash =?`
-    ).get([hash]) as { category: string } | undefined
+    const row = this.db.prepare(this._sql.getCachedCategory).get([hash]) as
+      | { category: string }
+      | undefined
     return row?.category?? null
   }
 
   async cacheCategory(title: string, domain: string | undefined, category: string): Promise<void> {
     const hash = createHash('sha256').update(`${title}|${domain?? ''}`).digest('hex')
-    this.db.prepare(
-      `INSERT OR REPLACE INTO title_classifications (title_hash, title, domain, category, classified_at)
-       VALUES (?,?,?,?,?)`
-    ).run([hash, title, domain?? null, category, Date.now()])
+    this.db.prepare(this._sql.upsertTitleClassification).run([
+      hash,
+      title,
+      domain?? null,
+      category,
+      Date.now(),
+    ])
   }
 }

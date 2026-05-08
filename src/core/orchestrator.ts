@@ -6,6 +6,7 @@ import type { AppRepo } from '../repos/app.repo.js'
 import type { IdeRepo } from '../repos/ide.repo.js'
 import type { InterventionService } from './intervention.service.js'
 import chalk from 'chalk'
+import { config } from './config.js'
 
 
 interface OrchestratorDeps {
@@ -99,8 +100,8 @@ Give 1 specific, actionable suggestion to unblock them. Max 2 sentences.`
     if (!state.interventionPrompt) return {}
 
     const llm = new Ollama({
-      baseUrl: 'http://localhost:11434',
-      model: 'llama3.1:8b',
+      baseUrl: config.get().OLLAMA_BASE_URL,
+      model: config.get().OLLAMA_MODEL,
       temperature: 0.7
     })
 
