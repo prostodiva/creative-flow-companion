@@ -1,6 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import os from 'node:os';  // ADD THIS
+import path from 'node:path';  // ADD THIS
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -21,6 +23,15 @@ const ConfigSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
+
+// ---- Helpers ---------------------------------------------------------------
+
+function expandPath(p: string): string {
+  if (p.startsWith('~/')) {
+    return path.join(os.homedir(), p.slice(2));
+  }
+  return path.isAbsolute(p) ? p : resolve(process.cwd(), p);
+}
 
 // ---- Manager ---------------------------------------------------------------
 
@@ -46,7 +57,12 @@ class ConfigManager extends EventEmitter {
         .join('\n');
       throw new Error(`Invalid configuration:\n${issues}`);
     }
-    return result.data;
+    
+    // EXPAND PATH HERE
+    const cfg = result.data;
+    cfg.DB_PATH = expandPath(cfg.DB_PATH);
+    
+    return cfg;
   }
 
   private async _watchAsync(): Promise<void> {

@@ -155,8 +155,10 @@ export async function getDB(): Promise<DB> {
   if (_instance) return _instance;
 
   const cfg = config.get();
-  const dbPath = resolve(cfg.DB_PATH);
+  const dbPath = cfg.DB_PATH;
   const dir = dirname(dbPath);
+
+  logger.info({ dbPath, dir }, 'Resolved DB path'); 
 
   await mkdir(dir, { recursive: true });
 
