@@ -12,6 +12,7 @@ export interface AppActivity {
   has_audio?: boolean
   category?: string | null  // Add | null
   duration_ms: number
+  chrome_tab_count?: number | null
 }
 
 export interface AppSummaryRow {
@@ -59,7 +60,8 @@ export class AppRepo {
         stmt.run([
           a.ts, a.app, a.title, a.domain?? null,
           a.is_fullscreen? 1 : 0, a.has_audio? 1 : 0,
-          a.category?? null, a.duration_ms
+          a.category?? null, a.duration_ms,
+          a.chrome_tab_count ?? null,
         ])
       }
     })

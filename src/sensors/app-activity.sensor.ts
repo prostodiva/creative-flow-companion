@@ -34,6 +34,7 @@ export class AppActivitySensor extends Sensor {
   private lastDomain: string | null = null  
   private lastFullscreen = false
   private lastAudible = false
+  private lastChromeTabCount: number | null = null
   private lastTs = Date.now()
 
   constructor(private appRepo: AppRepo) {
@@ -74,9 +75,14 @@ export class AppActivitySensor extends Sensor {
 
   protected async poll(): Promise<void> {
     const now = Date.now()
-    const { app, title, domain, fullscreen, audible } = await this.getActiveWindow()
+    const { app, title, domain, fullscreen, audible, chromeTabCount } = await this.getActiveWindow()
     
-    if (app === this.lastApp && title === this.lastTitle) {
+    const chromeTabsChanged =
+      app === 'Google Chrome' &&
+      this.lastApp === 'Google Chrome' &&
+      chromeTabCount !== this.lastChromeTabCount
+
+    if (app === this.lastApp && title === this.lastTitle && !chromeTabsChanged) {
       return
     }
     
@@ -103,7 +109,8 @@ export class AppActivitySensor extends Sensor {
         is_fullscreen: this.lastFullscreen,
         has_audio: this.lastAudible,
         category: category || null,  // Convert undefined to null
-        duration_ms
+        duration_ms,
+        chrome_tab_count: this.lastApp === 'Google Chrome' ? this.lastChromeTabCount : null
       }])
       
       logger.debug({ app: this.lastApp, title: this.lastTitle, domain: this.lastDomain, category, duration_ms }, 'Saved activity')
@@ -114,6 +121,7 @@ export class AppActivitySensor extends Sensor {
     this.lastDomain = domain  // domain is string | null, matches field type
     this.lastFullscreen = fullscreen
     this.lastAudible = audible
+    this.lastChromeTabCount = chromeTabCount
     this.lastTs = now
   }
 
@@ -123,7 +131,8 @@ export class AppActivitySensor extends Sensor {
   title: string
   domain: string | null
   fullscreen: boolean
-  audible: boolean 
+  audible: boolean
+  chromeTabCount: number | null
 }> {
   try {
     const script = `
@@ -135,6 +144,7 @@ export class AppActivitySensor extends Sensor {
       set tabUrl to ""
       set isFull to false
       set isAudible to false
+      set tabCount to 0
       
       if frontApp is "Google Chrome" then
         tell application "Google Chrome"
@@ -150,6 +160,12 @@ export class AppActivitySensor extends Sensor {
             end try
             try
               set isFull to fullscreen of front window
+            end try
+            try
+              set tabCount to 0
+              repeat with w in windows
+                set tabCount to tabCount + (count of tabs of w)
+              end repeat
             end try
           end if
         end tell
@@ -174,11 +190,11 @@ export class AppActivitySensor extends Sensor {
         end tell
       end if
       
-      return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & isAudible
+      return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & isAudible & "|||" & tabCount
     `
     
     const { stdout } = await execFileAsync('osascript', ['-e', script])
-    const [app, title, url, fullStr, audStr] = stdout.trim().split('|||')
+    const [app, title, url, fullStr, audStr, tabCountStr] = stdout.trim().split('|||')
     
     let domain: string | null = null
     if (url && url !== 'missing value' && url !== '') {
@@ -186,17 +202,23 @@ export class AppActivitySensor extends Sensor {
         domain = new URL(url).hostname.replace('www.', '') 
       } catch {}
     }
+
+    const chromeTabCount =
+      app === 'Google Chrome'
+        ? Number.isFinite(Number(tabCountStr)) ? parseInt(String(tabCountStr), 10) : null
+        : null
     
     return {
       app: app || 'unknown',
       title: title || '',
       domain,
       fullscreen: fullStr === 'true',
-      audible: audStr === 'true'
+      audible: audStr === 'true',
+      chromeTabCount,
     }
   } catch (err) {
     logger.error({ err }, 'getActiveWindow failed')
-    return { app: 'unknown', title: '', domain: null, fullscreen: false, audible: false }
+    return { app: 'unknown', title: '', domain: null, fullscreen: false, audible: false, chromeTabCount: null }
   }
 }
       
