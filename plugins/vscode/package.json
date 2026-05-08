@@ -1,0 +1,22 @@
+{
+  "name": "flow-agent-vscode",
+  "displayName": "Flow Agent Telemetry",
+  "description": "Sends keystroke and Copilot events to the Flow Agent daemon",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.2",
+    "@types/vscode": "1.85.0",
+    "typescript": "5.4.5"
+  }
+}

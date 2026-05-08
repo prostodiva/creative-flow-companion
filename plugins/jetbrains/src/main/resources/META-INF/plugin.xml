@@ -1,0 +1,21 @@
+<idea-plugin>
+  <id>com.flowagent.telemetry</id>
+  <name>Flow Agent Telemetry</name>
+  <vendor>FlowAgent</vendor>
+  <description>Sends keystroke and AI code-accept events to the local Flow Agent daemon via Unix socket.</description>
+
+  <depends>com.intellij.modules.platform</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService
+      serviceImplementation="com.flowagent.FlowAgentService"/>
+    <editorFactoryDocumentListener
+      implementation="com.flowagent.KeystrokeListener"/>
+  </extensions>
+
+  <applicationListeners>
+    <listener
+      class="com.flowagent.AppLifecycleListener"
+      topic="com.intellij.ide.AppLifecycleListener"/>
+  </applicationListeners>
+</idea-plugin>

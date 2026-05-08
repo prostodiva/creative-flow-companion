@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# TypeScript build output
+dist/
+build/
+*.js.map
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+.env.local
+
+# Database files - Flow Agent + SQLite
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+.flow-agent/
+~/.flow-agent/
+
+# Plugin builds
+plugins/vscode/out/
+plugins/jetbrains/build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime & OS
+.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+*.suo
+*.swp
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+tmp/
