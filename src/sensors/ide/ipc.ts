@@ -16,9 +16,11 @@ export interface IpcEvent {
 /**
  * Unix domain socket server.
  * IDE plugins connect and send newline-delimited JSON:
- *   {"event":"keystroke","file":"/path/to/file.ts"}
+ * {"event":"keystroke","file":"/path/to/file.ts"}
  */
-export class IpcServer extends EventEmitter {
+export class IpcServer extends EventEmitter<{
+  event: [IpcEvent]
+}> {
   private _server: Server | null = null;
 
   async start(): Promise<void> {
@@ -33,7 +35,7 @@ export class IpcServer extends EventEmitter {
       socket.on('data', (chunk) => {
         buf += chunk.toString('utf8');
         const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
+        buf = lines.pop()?? '';
         for (const line of lines) {
           this._handleLine(line.trim());
         }
@@ -74,8 +76,8 @@ export class IpcServer extends EventEmitter {
       const raw = JSON.parse(line) as Record<string, unknown>;
 
       if (
-        (raw['event'] !== 'keystroke' && raw['event'] !== 'copilot_accept') ||
-        typeof raw['file'] !== 'string'
+        (raw['event']!== 'keystroke' && raw['event']!== 'copilot_accept') ||
+        typeof raw['file']!== 'string'
       ) {
         logger.warn({ raw }, 'Malformed IPC message');
         return;

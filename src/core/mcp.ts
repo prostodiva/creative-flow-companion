@@ -30,10 +30,10 @@ export function createMcpServer(deps: {
     execute: async () => {
       const uptimeSec = Math.round((Date.now() - deps.startedAt) / 1000);
       const sensorHealth = deps.sensors.map((s) => s.health());
-      const allOk = sensorHealth.every((h) => h.status !== 'error');
+      const allOk = sensorHealth.every((h) => h.status!== 'error');
 
       return JSON.stringify({
-        status: allOk ? 'ok' : 'degraded',
+        status: allOk? 'ok' : 'degraded',
         uptime_sec: uptimeSec,
         intervention_clients: deps.interventionService.clientCount,
         sensors: sensorHealth,
@@ -57,12 +57,12 @@ export function createMcpServer(deps: {
     description: 'Returns per-app usage summary for the given time window',
     parameters: z.object({
       window_minutes: z
-        .number()
-        .int()
-        .positive()
-        .max(1440)
-        .default(60)
-        .describe('Look-back window in minutes (max 1440 = 24 h)'),
+       .number()
+       .int()
+       .positive()
+       .max(1440)
+       .default(60)
+       .describe('Look-back window in minutes (max 1440 = 24 h)'),
     }),
     execute: async ({ window_minutes }) => {
       const summary = await deps.appService.getSummary(window_minutes * 60 * 1000);
@@ -76,15 +76,17 @@ export function createMcpServer(deps: {
     description: 'Returns per-project IDE session summary for the given time window',
     parameters: z.object({
       window_minutes: z
-        .number()
-        .int()
-        .positive()
-        .max(1440)
-        .default(60)
-        .describe('Look-back window in minutes (max 1440 = 24 h)'),
+       .number()
+       .int()
+       .positive()
+       .max(1440)
+       .default(60)
+       .describe('Look-back window in minutes (max 1440 = 24 h)'),
     }),
     execute: async ({ window_minutes }) => {
-      const summary = await deps.ideService.getSummary(window_minutes * 60 * 1000);
+      const now = Date.now(); // <- Fix: calculate fromMs and toMs
+      const fromMs = now - window_minutes * 60 * 1000;
+      const summary = await deps.ideService.getSummary(fromMs, now);
       return JSON.stringify(summary);
     },
   });

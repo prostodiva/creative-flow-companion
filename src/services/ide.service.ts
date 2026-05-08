@@ -1,40 +1,24 @@
-import type { IdeRepo, IdeSummaryRow } from '../repos/ide.repo.js';
-import { sanitizeForLLM } from '../utils/redact.js';
-
-export interface IdeSummary {
-  fromMs: number;
-  toMs: number;
-  sessions: IdeSummaryRow[];
-  keystrokeCount: number;
-}
+import type { IdeRepo, IdeSummaryRow, IdeEvent } from '../repos/ide.repo.js';
+import { redact } from '../utils/redact.js';
 
 export class IdeService {
-  constructor(private readonly repo: IdeRepo) {}
+  constructor(private repo: IdeRepo) {}
 
-  async getSummary(windowMs = 60 * 60 * 1000): Promise<IdeSummary> {
-    const toMs = Date.now();
-    const fromMs = toMs - windowMs;
-
-    const [sessions, keystrokeCount] = await Promise.all([
-      this.repo.getSummary(fromMs, toMs),
-      this.repo.getKeystrokeCount(fromMs, toMs),
-    ]);
-
-    const sanitised: IdeSummaryRow[] = sessions.map((s) => ({
-      ...s,
-      project: sanitizeForLLM(s.project),
-      ide: sanitizeForLLM(s.ide),
+  async getSummary(fromMs: number, toMs: number) {
+    const rows = await this.repo.getSummary(fromMs, toMs);
+    return rows.map((s: IdeSummaryRow) => ({
+      
+      total_ms: s.total_ms
     }));
-
-    return { fromMs, toMs, sessions: sanitised, keystrokeCount };
   }
 
-  async getRecentEvents(limit = 50) {
-    const rows = await this.repo.getRecentEvents(limit);
-    return rows.map((r) => ({
-      ...r,
-      project: sanitizeForLLM(r.project),
-      file: sanitizeForLLM(r.file),
+  async getRecentEvents(limit: number) {
+    const events = await this.repo.getRecentEvents(limit);
+    return events.map((r: IdeEvent) => ({
+      ts: r.ts,
+     
+      event_type: r.event_type,
+     
     }));
   }
 }

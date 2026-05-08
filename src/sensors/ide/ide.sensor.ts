@@ -1,11 +1,13 @@
 import { PollingSensor } from '../base/polling.sensor.js';
-import type { IdeParser, IdeInfo } from './parsers/base.parser.js';
-import { VSCodeParser } from './parsers/vscose.parser.js';
-import { JetBrainsParser } from './parsers/jetbrains.parser.js';
 import { IpcServer } from '../ide/ipc.js';
-import type { IdeRepo } from '../../repos/ide.repo.ts';
+import type { IdeRepo } from '../../repos/ide.repo.js';
 import { redact } from '../../utils/redact.js';
 import { logger } from '../../core/logger.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
 
 // ---- Types -----------------------------------------------------------------
 
@@ -14,6 +16,7 @@ interface IdeEvent {
   ide: string;
   project: string;
   file: string;
+  event_type: string; 
   language: string;
   duration_ms: number;
 }
@@ -24,20 +27,15 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
   readonly name = 'ide';
 
   protected override get intervalMs(): number {
-    return 1_000; // 1 s — finer grained than global default
+    return 5_000; // 5s - only polling git, not window title
   }
 
-  private readonly _parsers: IdeParser[] = [
-    new VSCodeParser(),
-    new JetBrainsParser(),
-  ];
   private readonly _ipc: IpcServer;
   private readonly _repo: IdeRepo;
 
   // Keystroke tracking for "stuck" detection
   private _keystrokeCount = 0;
-  private _lastWindowKey = '';
-  private _windowStartMs = 0;
+  private _lastCommitTs = 0;
 
   constructor(repo: IdeRepo) {
     super();
@@ -50,11 +48,16 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
     void this._ipc.start();
     this._ipc.on('event', (evt) => {
       if (evt.event === 'keystroke') this._keystrokeCount++;
+      
+      // Extract project from file path - use parent dir name
+      const project = path.basename(path.dirname(evt.file)) || 'unknown';
+      
       // Persist the raw event
       void this._repo.insertKeystroke({
         ts: evt.ts,
         file: evt.file,
         event_type: evt.event,
+        project, // <- Added this
       });
     });
   }
@@ -65,42 +68,31 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
   }
 
   protected async poll(): Promise<IdeEvent | null> {
-    const activeWin = (await import('active-win')).default;
-    const win = await activeWin();
-    if (!win) return null;
-
-    const processName = win.owner.name;
-    const parser = this._parsers.find((p) => p.canParse(processName));
-    if (!parser) return null;
-
-    const info: Partial<IdeInfo> = parser.parse(win.title ?? '');
-    if (!info.project) return null;
-
-    const windowKey = `${info.ide ?? 'ide'}:${info.project}`;
-    const now = Date.now();
-
-    if (windowKey !== this._lastWindowKey) {
-      this._lastWindowKey = windowKey;
-      this._windowStartMs = now;
+    // Don't poll active window here - AppActivitySensor does that
+    // Only poll git for last commit timestamp
+    try {
+      const { stdout } = await execAsync('git log -1 --format=%ct', { 
+        cwd: process.cwd(),
+        timeout: 2000 
+      }).catch(() => ({ stdout: '0' }));
+      
+      const commitTs = parseInt(stdout.trim()) * 1000;
+      if (commitTs > this._lastCommitTs) {
+        this._lastCommitTs = commitTs;
+        this._repo.upsertLastCommit(commitTs); // Remove await - better-sqlite3 is sync
+      }
+    } catch (err) {
+      logger.debug({ err }, 'Git poll failed');
     }
-
-    const duration_ms = now - this._windowStartMs;
-
-    return {
-      ts: now,
-      ide: info.ide ?? 'ide',
-      project: redact(info.project),
-      file: redact(info.file ?? ''),
-      language: info.language ?? 'plaintext',
-      duration_ms,
-    };
+    
+    return null; // No window events from here anymore
   }
 
   protected async flush(batch: IdeEvent[]): Promise<void> {
-    await this._repo.insertMany(batch);
-    logger.debug({ sensor: this.name, count: batch.length }, 'Flushed IDE events');
-  }
-
+  if (batch.length === 0) return;
+  this._repo.insertMany(batch); // sync call is fine inside async
+  logger.debug({ sensor: this.name, count: batch.length }, 'Flushed IDE events');
+}
   /** Expose for rule engine */
   get keystrokeCount(): number {
     return this._keystrokeCount;

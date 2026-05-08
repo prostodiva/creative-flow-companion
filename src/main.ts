@@ -1,111 +1,95 @@
-/**
- * Flow Agent Telemetry v2 — entry point.
- *
- * Wires: DB → Repos → Services/Sensors → RuleEngine → InterventionService → MCP.
- * No SQL, no business logic here — only dependency injection.
- */
+import Database from 'better-sqlite3'
+import { existsSync, unlinkSync } from 'fs'
+import { AppRepo } from './repos/app.repo.js'
+import { IdeRepo } from './repos/ide.repo.js'
+import { InterventionService } from './core/intervention.service.js'
+import { AppActivitySensor } from './sensors/app-activity.sensor.js'
+import { IdeSensor } from './sensors/ide/ide.sensor.js'
+import { startOrchestrationLoop } from './core/orchestrator.js'
+import { logger } from './core/logger.js'
 
-import 'dotenv/config';
-import { getDB } from './core/db.js';
-import { logger } from './core/logger.js';
-import { AppRepo } from './repos/app.repo.js';
-import { IdeRepo } from './repos/ide.repo.js';
-import { AppService } from './services/app.service.js';
-import { IdeService } from './services/ide.service.js';
-import { AppActivitySensor } from './sensors/app-activity.sensor.js';
-import { IdeSensor } from './sensors/ide/ide.sensor.js';
-import { InterventionService } from './core/intervention.service.js';
-import { RuleEngine } from './core/rule-engine.js';
-import { createMcpServer, startMcpServer } from './core/mcp.js';
-import type { Sensor } from './sensors/base/sensor.js';
+const DB_PATH = '/Users/evolvers/.flow-agent/context.db'
 
-// ---- Bootstrap -------------------------------------------------------------
-
-async function main(): Promise<void> {
-  const startedAt = Date.now();
-  logger.info('Flow Agent Telemetry v2 starting…');
-
-  // 1. Database (singleton, encrypted)
-  const db = await getDB();
-
-  // 2. Repositories — all SQL lives here
-  const appRepo = new AppRepo(db);
-  const ideRepo = new IdeRepo(db);
-
-  // 3. Services — business logic, consumed by MCP tools
-  const appService = new AppService(appRepo);
-  const ideService = new IdeService(ideRepo);
-
-  // 4. Sensors — receive repos, never import getDB
-  const appSensor = new AppActivitySensor(appRepo);
-  const ideSensor = new IdeSensor(ideRepo);
-
-  const sensors: Sensor[] = [appSensor, ideSensor];
-
-  // 5. Intervention channel (WebSocket + OS toast)
-  const interventionService = new InterventionService();
-  interventionService.start();
-
-  // 6. Rule engine
-  const ruleEngine = new RuleEngine(
-    appRepo,
-    ideRepo,
-    interventionService,
-    ideSensor,
-    appSensor,
-  );
-  ruleEngine.start();
-
-  // 7. Start sensors
-  for (const sensor of sensors) {
-    sensor.start();
+// Delete if corrupt/empty
+if (existsSync(DB_PATH)) {
+  try {
+    const testDb = new Database(DB_PATH, { readonly: true })
+    testDb.close()
+  } catch (err) {
+    logger.warn('DB corrupt, deleting and recreating')
+    unlinkSync(DB_PATH)
   }
-
-  // 8. MCP server
-  const mcpServer = createMcpServer({
-    sensors,
-    appService,
-    ideService,
-    interventionService,
-    startedAt,
-  });
-  await startMcpServer(mcpServer);
-
-  logger.info(
-    { startupMs: Date.now() - startedAt },
-    'Flow Agent Telemetry v2 ready'
-  );
-
-  // ---- Graceful shutdown ---------------------------------------------------
-
-  async function shutdown(signal: string): Promise<void> {
-    logger.info({ signal }, 'Shutting down…');
-
-    ruleEngine.stop();
-    for (const sensor of sensors) {
-      sensor.stop();
-    }
-    await interventionService.stop();
-    await db.close();
-
-    logger.info('Shutdown complete');
-    process.exit(0);
-  }
-
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  process.on('SIGINT',  () => void shutdown('SIGINT'));
-  process.on('uncaughtException', (err) => {
-    logger.fatal({ err }, 'Uncaught exception — shutting down');
-    void shutdown('uncaughtException');
-  });
-  process.on('unhandledRejection', (reason) => {
-    logger.fatal({ reason }, 'Unhandled rejection — shutting down');
-    void shutdown('unhandledRejection');
-  });
 }
 
-main().catch((err) => {
-  // Use console here because logger may not be initialised
-  console.error('Fatal startup error', err);
-  process.exit(1);
-});
+const db = new Database(DB_PATH)
+db.pragma('journal_mode = WAL') // Better for concurrent reads/writes
+
+// Run migrations
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    app TEXT NOT NULL,
+    title TEXT NOT NULL,
+    domain TEXT,
+    is_fullscreen INTEGER DEFAULT 0,
+    has_audio INTEGER DEFAULT 0,
+    category TEXT,
+    duration_ms INTEGER NOT NULL
+  );
+  
+  CREATE INDEX IF NOT EXISTS idx_app_activity_ts ON app_activity(ts);
+  
+  CREATE TABLE IF NOT EXISTS title_classifications (
+    title_hash TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    domain TEXT,
+    category TEXT NOT NULL,
+    classified_at INTEGER NOT NULL
+  );
+  
+  CREATE TABLE IF NOT EXISTS ide_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    file TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    project TEXT
+  );
+  
+  CREATE INDEX IF NOT EXISTS idx_ide_events_ts ON ide_events(ts);
+  
+  CREATE TABLE IF NOT EXISTS ide_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    project TEXT NOT NULL,
+    file TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL
+  );
+  
+  CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`)
+
+const appRepo = new AppRepo(db)
+const ideRepo = new IdeRepo(db)
+const interventionService = new InterventionService()
+
+const appSensor = new AppActivitySensor(appRepo)
+const ideSensor = new IdeSensor(ideRepo)
+
+appSensor.start()
+ideSensor.start()
+
+startOrchestrationLoop({ appRepo, ideRepo, interventionService })
+
+logger.info('Flow Agent Telemetry v2 ready')
+
+process.on('SIGINT', () => {
+  logger.info('Shutting down...')
+  appSensor.stop()
+  ideSensor.stop()
+  db.close()
+  process.exit(0)
+})
