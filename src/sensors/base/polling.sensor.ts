@@ -1,23 +1,13 @@
-import { Sensor, type SensorHealth } from './sensor.js';
-import { logger } from '../../core/logger.js';
-import { sensorTicksTotal, sensorErrorsTotal } from '../../core/metrics.js';
+import { Sensor, type SensorHealth } from "./sensor.js";
+import { logger } from "../../core/logger.js";
+import { sensorTicksTotal, sensorErrorsTotal } from "../../core/metrics.js";
 
 // ---- Configuration ---------------------------------------------------------
 
 const DEFAULT_BATCH_SIZE = 10;
 const DEFAULT_FLUSH_INTERVAL_MS = 5_000;
 
-// ---- PollingSensor ---------------------------------------------------------
 
-/**
- * Template Method base class.
- *
- * Children only implement:
- *   - `poll()` — returns data or null if nothing to record
- *   - `flush(batch)` — persists a full batch to the repository
- *   - `intervalMs` — override default poll interval (optional)
- *   - `batchSize`  — override default batch size (optional)
- */
 export abstract class PollingSensor<T> extends Sensor {
   protected _batch: T[] = [];
   protected _lastTickAt: number | null = null;
@@ -27,7 +17,7 @@ export abstract class PollingSensor<T> extends Sensor {
   private _pollTimer: NodeJS.Timeout | null = null;
   private _flushTimer: NodeJS.Timeout | null = null;
 
-  /** Override to provide a sensor-specific interval; falls back to config */
+  
   protected get intervalMs(): number {
     return Number(process.env.POLL_INTERVAL_MS) || 2000;
   }
@@ -40,23 +30,26 @@ export abstract class PollingSensor<T> extends Sensor {
     return DEFAULT_FLUSH_INTERVAL_MS;
   }
 
-  // ---- Abstract -------------------------------------------------------
 
-  /** Called every interval. Return data to batch, or null to skip. */
   protected abstract poll(): Promise<T | null>;
 
-  /** Persist the accumulated batch. Called when batch is full or flush timer fires. */
+
   protected abstract flush(batch: T[]): Promise<void>;
 
-  // ---- Template Method ------------------------------------------------
+
 
   start(): void {
-    if (this._pollTimer) return; // already running
-    logger.info({ sensor: this.name, intervalMs: this.intervalMs }, 'Sensor started');
+    if (this._pollTimer) return; 
+    logger.info(
+      { sensor: this.name, intervalMs: this.intervalMs },
+      "Sensor started",
+    );
 
     this._pollTimer = setInterval(() => void this._tick(), this.intervalMs);
-    this._flushTimer = setInterval(() => void this._triggerFlush(), this.flushIntervalMs);
-
+    this._flushTimer = setInterval(
+      () => void this._triggerFlush(),
+      this.flushIntervalMs,
+    );
   }
 
   stop(): void {
@@ -72,7 +65,7 @@ export abstract class PollingSensor<T> extends Sensor {
     if (this._batch.length > 0) {
       void this._triggerFlush();
     }
-    logger.info({ sensor: this.name }, 'Sensor stopped');
+    logger.info({ sensor: this.name }, "Sensor stopped");
   }
 
   health(): SensorHealth {
@@ -80,16 +73,15 @@ export abstract class PollingSensor<T> extends Sensor {
       name: this.name,
       status: this._pollTimer
         ? this._errorCount > 0
-          ? 'error'
-          : 'ok'
-        : 'idle',
+          ? "error"
+          : "ok"
+        : "idle",
       lastTickAt: this._lastTickAt,
       errorCount: this._errorCount,
       tickCount: this._tickCount,
     };
   }
 
-  // ---- Internal -------------------------------------------------------
 
   private async _tick(): Promise<void> {
     try {
@@ -107,7 +99,7 @@ export abstract class PollingSensor<T> extends Sensor {
     } catch (err) {
       this._errorCount++;
       sensorErrorsTotal.inc({ sensor: this.name });
-      logger.error({ sensor: this.name, err }, 'Poll error');
+      logger.error({ sensor: this.name, err }, "Poll error");
     }
   }
 
@@ -117,13 +109,16 @@ export abstract class PollingSensor<T> extends Sensor {
     try {
       await this.flush(toFlush);
     } catch (err) {
-      logger.error({ sensor: this.name, err, count: toFlush.length }, 'Flush error');
-      // Return items to front of batch to retry
+      logger.error(
+        { sensor: this.name, err, count: toFlush.length },
+        "Flush error",
+      );
+
       this._batch.unshift(...toFlush);
     }
   }
 
-  // Expose for testing
+
   get batchSnapshot(): readonly T[] {
     return this._batch;
   }

@@ -1,30 +1,28 @@
-import { PollingSensor } from '../base/polling.sensor.js';
-import { IpcServer } from '../ide/ipc.js';
-import type { IdeRepo } from '../../repos/ide.repo.js';
-import { redact } from '../../utils/redact.js';
-import { logger } from '../../core/logger.js';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
+import { PollingSensor } from "../base/polling.sensor.js";
+import { IpcServer } from "../ide/ipc.js";
+import type { IdeRepo } from "../../repos/ide.repo.js";
+import { redact } from "../../utils/redact.js";
+import { logger } from "../../core/logger.js";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import path from "path";
 
 const execFileAsync = promisify(execFile);
 
-// ---- Types -----------------------------------------------------------------
 
 interface IdeEvent {
   ts: number;
   ide: string;
   project: string;
   file: string;
-  event_type: string; 
+  event_type: string;
   language: string;
   duration_ms: number;
 }
 
-// ---- Sensor ----------------------------------------------------------------
 
 export class IdeSensor extends PollingSensor<IdeEvent> {
-  readonly name = 'ide';
+  readonly name = "ide";
 
   protected override get intervalMs(): number {
     return 5_000; // 5s - only polling git, not window title
@@ -33,7 +31,6 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
   private readonly _ipc: IpcServer;
   private readonly _repo: IdeRepo;
 
-  // Keystroke tracking for "stuck" detection
   private _keystrokeCount = 0;
   private _lastCommitTs = 0;
 
@@ -46,12 +43,12 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
   override start(): void {
     super.start();
     void this._ipc.start();
-    this._ipc.on('event', (evt) => {
-      if (evt.event === 'keystroke') this._keystrokeCount++;
-      
+    this._ipc.on("event", (evt) => {
+      if (evt.event === "keystroke") this._keystrokeCount++;
+
       // Extract project from file path - use parent dir name
-      const project = path.basename(path.dirname(evt.file)) || 'unknown';
-      
+      const project = path.basename(path.dirname(evt.file)) || "unknown";
+
       // Persist the raw event
       void this._repo.insertKeystroke({
         ts: evt.ts,
@@ -71,28 +68,35 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
     // Don't poll active window here - AppActivitySensor does that
     // Only poll git for last commit timestamp
     try {
-      const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%ct'], {
-        cwd: process.cwd(),
-        timeout: 2000,
-      }).catch(() => ({ stdout: '0' }));
-      
+      const { stdout } = await execFileAsync(
+        "git",
+        ["log", "-1", "--format=%ct"],
+        {
+          cwd: process.cwd(),
+          timeout: 2000,
+        },
+      ).catch(() => ({ stdout: "0" }));
+
       const commitTs = parseInt(stdout.trim()) * 1000;
       if (commitTs > this._lastCommitTs) {
         this._lastCommitTs = commitTs;
-        this._repo.upsertLastCommit(commitTs); // Remove await - better-sqlite3 is sync
+        this._repo.upsertLastCommit(commitTs); 
       }
     } catch (err) {
-      logger.debug({ err }, 'Git poll failed');
+      logger.debug({ err }, "Git poll failed");
     }
-    
-    return null; // No window events from here anymore
+
+    return null; 
   }
 
   protected async flush(batch: IdeEvent[]): Promise<void> {
-  if (batch.length === 0) return;
-  this._repo.insertMany(batch); // sync call is fine inside async
-  logger.debug({ sensor: this.name, count: batch.length }, 'Flushed IDE events');
-}
+    if (batch.length === 0) return;
+    this._repo.insertMany(batch); 
+    logger.debug(
+      { sensor: this.name, count: batch.length },
+      "Flushed IDE events",
+    );
+  }
   /** Expose for rule engine */
   get keystrokeCount(): number {
     return this._keystrokeCount;

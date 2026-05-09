@@ -1,14 +1,14 @@
-import { createServer, type Server } from 'node:net';
-import { unlink, chmod } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { EventEmitter } from 'node:events';
-import { logger } from '../../core/logger.js';
-import { redact } from '../../utils/redact.js';
+import { createServer, type Server } from "node:net";
+import { unlink, chmod } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import { logger } from "../../core/logger.js";
+import { redact } from "../../utils/redact.js";
 
-export const SOCKET_PATH = '/tmp/flow-agent-ide.sock';
+export const SOCKET_PATH = "/tmp/flow-agent-ide.sock";
 
 export interface IpcEvent {
-  event: 'keystroke' | 'copilot_accept';
+  event: "keystroke" | "copilot_accept";
   file: string;
   ts: number;
 }
@@ -19,7 +19,7 @@ export interface IpcEvent {
  * {"event":"keystroke","file":"/path/to/file.ts"}
  */
 export class IpcServer extends EventEmitter<{
-  event: [IpcEvent]
+  event: [IpcEvent];
 }> {
   private _server: Server | null = null;
 
@@ -30,30 +30,30 @@ export class IpcServer extends EventEmitter<{
     }
 
     this._server = createServer((socket) => {
-      let buf = '';
+      let buf = "";
 
-      socket.on('data', (chunk) => {
-        buf += chunk.toString('utf8');
-        const lines = buf.split('\n');
-        buf = lines.pop()?? '';
+      socket.on("data", (chunk) => {
+        buf += chunk.toString("utf8");
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
         for (const line of lines) {
           this._handleLine(line.trim());
         }
       });
 
-      socket.on('error', (err) => {
-        logger.warn({ err }, 'IPC socket client error');
+      socket.on("error", (err) => {
+        logger.warn({ err }, "IPC socket client error");
       });
     });
 
     await new Promise<void>((resolve, reject) => {
       this._server!.listen(SOCKET_PATH, () => resolve());
-      this._server!.once('error', reject);
+      this._server!.once("error", reject);
     });
 
     // Restrict access — only owner can read/write
     await chmod(SOCKET_PATH, 0o600);
-    logger.info({ path: SOCKET_PATH }, 'IPC socket listening');
+    logger.info({ path: SOCKET_PATH }, "IPC socket listening");
   }
 
   async stop(): Promise<void> {
@@ -62,7 +62,7 @@ export class IpcServer extends EventEmitter<{
       this._server.close(() => resolve());
     });
     await unlink(SOCKET_PATH).catch(() => {});
-    logger.info('IPC socket stopped');
+    logger.info("IPC socket stopped");
   }
 
   private _handleLine(line: string): void {
@@ -70,27 +70,27 @@ export class IpcServer extends EventEmitter<{
     try {
       // Basic length guard before parsing
       if (line.length > 512) {
-        logger.warn('IPC message too long, dropping');
+        logger.warn("IPC message too long, dropping");
         return;
       }
       const raw = JSON.parse(line) as Record<string, unknown>;
 
       if (
-        (raw['event']!== 'keystroke' && raw['event']!== 'copilot_accept') ||
-        typeof raw['file']!== 'string'
+        (raw["event"] !== "keystroke" && raw["event"] !== "copilot_accept") ||
+        typeof raw["file"] !== "string"
       ) {
-        logger.warn({ raw }, 'Malformed IPC message');
+        logger.warn({ raw }, "Malformed IPC message");
         return;
       }
 
       const evt: IpcEvent = {
-        event: raw['event'] as IpcEvent['event'],
-        file: redact(raw['file']),
+        event: raw["event"] as IpcEvent["event"],
+        file: redact(raw["file"]),
         ts: Date.now(),
       };
-      this.emit('event', evt);
+      this.emit("event", evt);
     } catch {
-      logger.warn({ line }, 'Failed to parse IPC message');
+      logger.warn({ line }, "Failed to parse IPC message");
     }
   }
 }

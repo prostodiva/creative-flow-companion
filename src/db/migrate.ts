@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type Database from 'better-sqlite3';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type Database from "better-sqlite3";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 
 type Migration = {
   id: string;
@@ -19,28 +19,25 @@ function splitUpDown(sql: string): { up: string; down: string } {
   const downIdx = sql.search(downMarker);
 
   if (upIdx === -1) {
-    // Back-compat: treat entire file as "up"
-    return { up: sql.trim(), down: '' };
+    return { up: sql.trim(), down: "" };
   }
 
   if (downIdx === -1) {
-    const up = sql.slice(upIdx).replace(upMarker, '').trim();
-    return { up, down: '' };
+    const up = sql.slice(upIdx).replace(upMarker, "").trim();
+    return { up, down: "" };
   }
 
-  const up = sql.slice(upIdx, downIdx).replace(upMarker, '').trim();
-  const down = sql.slice(downIdx).replace(downMarker, '').trim();
+  const up = sql.slice(upIdx, downIdx).replace(upMarker, "").trim();
+  const down = sql.slice(downIdx).replace(downMarker, "").trim();
   return { up, down };
 }
 
 function migrationsDirCandidates(): string[] {
-  // Running from src: projectRoot/db/migrations
-  // Running from dist: projectRoot/dist/db/migrations
-  const here = dirname(fileURLToPath(import.meta.url)); // src/db
-  const projectRoot = resolve(here, '..', '..');
+  const here = dirname(fileURLToPath(import.meta.url)); 
+  const projectRoot = resolve(here, "..", "..");
   return [
-    resolve(projectRoot, 'dist', 'db', 'migrations'),
-    resolve(projectRoot, 'db', 'migrations'),
+    resolve(projectRoot, "dist", "db", "migrations"),
+    resolve(projectRoot, "db", "migrations"),
   ];
 }
 
@@ -53,7 +50,6 @@ function readMigrations(): Migration[] {
       dir = d;
       break;
     } catch {
-      // keep trying
     }
   }
   if (!dir) return [];
@@ -64,7 +60,7 @@ function readMigrations(): Migration[] {
 
   return files.map((filename) => {
     const full = resolve(dir!, filename);
-    const raw = readFileSync(full, 'utf8');
+    const raw = readFileSync(full, "utf8");
     const { up, down } = splitUpDown(raw);
     return {
       id: filename.slice(0, 3),
@@ -76,7 +72,6 @@ function readMigrations(): Migration[] {
 }
 
 function execTolerant(db: Database.Database, sql: string): void {
-  // Execute statement-by-statement so we can tolerate idempotent "add column" migrations
   const statements = sql
     .split(/;\s*(?:\r?\n|$)/g)
     .map((s) => s.trim())
@@ -87,8 +82,6 @@ function execTolerant(db: Database.Database, sql: string): void {
       db.exec(`${stmt};`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Allow re-applying migrations on databases that already have the columns.
-      // SQLite doesn't support `ADD COLUMN IF NOT EXISTS`.
       if (
         /duplicate column name/i.test(msg) ||
         /duplicate\s+column/i.test(msg) ||
@@ -102,7 +95,6 @@ function execTolerant(db: Database.Database, sql: string): void {
 }
 
 export function runMigrations(db: Database.Database): void {
-  // Ensure migrations table exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
@@ -114,7 +106,7 @@ export function runMigrations(db: Database.Database): void {
     db
       .prepare(`SELECT id FROM schema_migrations ORDER BY id`)
       .all()
-      .map((r) => String((r as { id: unknown }).id))
+      .map((r) => String((r as { id: unknown }).id)),
   );
 
   const migrations = readMigrations();
@@ -125,12 +117,10 @@ export function runMigrations(db: Database.Database): void {
 
     const tx = db.transaction(() => {
       if (m.upSql) execTolerant(db, m.upSql);
-      db.prepare(`INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)`).run([
-        m.id,
-        Date.now(),
-      ]);
+      db.prepare(
+        `INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)`,
+      ).run([m.id, Date.now()]);
     });
     tx();
   }
 }
-

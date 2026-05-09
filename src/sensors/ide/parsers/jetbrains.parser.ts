@@ -1,4 +1,4 @@
-import type { IdeParser, IdeInfo } from './base.parser.js';
+import type { IdeParser, IdeInfo } from "./base.parser.js";
 
 /**
  * JetBrains title formats vary by product but share a pattern:
@@ -9,49 +9,49 @@ import type { IdeParser, IdeInfo } from './base.parser.js';
  */
 
 const PROCESS_NAMES = new Set([
-  'idea',
-  'idea64',
-  'webstorm',
-  'webstorm64',
-  'rider',
-  'rider64',
-  'pycharm',
-  'pycharm64',
-  'goland',
-  'goland64',
-  'clion',
-  'clion64',
-  'phpstorm',
-  'phpstorm64',
-  'rubymine',
-  'rubymine64',
-  'datagrip',
-  'datagrip64',
-  'fleet',
+  "idea",
+  "idea64",
+  "webstorm",
+  "webstorm64",
+  "rider",
+  "rider64",
+  "pycharm",
+  "pycharm64",
+  "goland",
+  "goland64",
+  "clion",
+  "clion64",
+  "phpstorm",
+  "phpstorm64",
+  "rubymine",
+  "rubymine64",
+  "datagrip",
+  "datagrip64",
+  "fleet",
   // macOS process names (app bundle name)
-  'IntelliJ IDEA',
-  'WebStorm',
-  'Rider',
-  'PyCharm',
-  'GoLand',
-  'CLion',
-  'PhpStorm',
-  'RubyMine',
-  'DataGrip',
-  'Fleet',
+  "IntelliJ IDEA",
+  "WebStorm",
+  "Rider",
+  "PyCharm",
+  "GoLand",
+  "CLion",
+  "PhpStorm",
+  "RubyMine",
+  "DataGrip",
+  "Fleet",
 ]);
 
 const PRODUCT_NAMES: Record<string, string> = {
-  'IntelliJ IDEA': 'intellij',
-  WebStorm: 'webstorm',
-  Rider: 'rider',
-  PyCharm: 'pycharm',
-  GoLand: 'goland',
-  CLion: 'clion',
-  PhpStorm: 'phpstorm',
-  RubyMine: 'rubymine',
-  DataGrip: 'datagrip',
-  Fleet: 'fleet',
+  "IntelliJ IDEA": "intellij",
+  WebStorm: "webstorm",
+  Rider: "rider",
+  PyCharm: "pycharm",
+  GoLand: "goland",
+  CLion: "clion",
+  PhpStorm: "phpstorm",
+  RubyMine: "rubymine",
+  DataGrip: "datagrip",
+  Fleet: "fleet",
 };
 
 // "filename.kt [ProjectName] – Rider"
@@ -60,33 +60,33 @@ const FULL_RE = /^(.+?)\s+\[(.+?)\]\s+[–—-]+\s+(.+)$/u;
 const PROJECT_RE = /^(.+?)\s+[–—-]+\s+(.+)$/u;
 
 const LANGUAGE_MAP: Record<string, string> = {
-  kt: 'kotlin',
-  java: 'java',
-  py: 'python',
-  go: 'go',
-  rs: 'rust',
-  cs: 'csharp',
-  fs: 'fsharp',
-  ts: 'typescript',
-  js: 'javascript',
-  php: 'php',
-  rb: 'ruby',
-  cpp: 'cpp',
-  c: 'c',
-  h: 'c',
-  sql: 'sql',
+  kt: "kotlin",
+  java: "java",
+  py: "python",
+  go: "go",
+  rs: "rust",
+  cs: "csharp",
+  fs: "fsharp",
+  ts: "typescript",
+  js: "javascript",
+  php: "php",
+  rb: "ruby",
+  cpp: "cpp",
+  c: "c",
+  h: "c",
+  sql: "sql",
 };
 
 function detectLanguage(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  return LANGUAGE_MAP[ext] ?? 'plaintext';
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return LANGUAGE_MAP[ext] ?? "plaintext";
 }
 
 function productToIde(productName: string): string {
   for (const [key, val] of Object.entries(PRODUCT_NAMES)) {
     if (productName.includes(key)) return val;
   }
-  return 'jetbrains';
+  return "jetbrains";
 }
 
 export class JetBrainsParser implements IdeParser {
@@ -100,10 +100,10 @@ export class JetBrainsParser implements IdeParser {
     const fullMatch = FULL_RE.exec(title);
     if (fullMatch) {
       const [, rawFile, rawProject, rawProduct] = fullMatch;
-      const file = (rawFile ?? '').trim();
-      const project = (rawProject ?? '').trim();
+      const file = (rawFile ?? "").trim();
+      const project = (rawProject ?? "").trim();
       return {
-        ide: productToIde(rawProduct ?? ''),
+        ide: productToIde(rawProduct ?? ""),
         project: project.slice(0, 200),
         file: file.slice(0, 200),
         language: detectLanguage(file),
@@ -114,13 +114,13 @@ export class JetBrainsParser implements IdeParser {
     if (projectMatch) {
       const [, rawProject, rawProduct] = projectMatch;
       return {
-        ide: productToIde(rawProduct ?? ''),
-        project: (rawProject ?? '').trim().slice(0, 200),
-        file: '',
-        language: 'plaintext',
+        ide: productToIde(rawProduct ?? ""),
+        project: (rawProject ?? "").trim().slice(0, 200),
+        file: "",
+        language: "plaintext",
       };
     }
 
-    return { ide: 'jetbrains', project: title.slice(0, 200) };
+    return { ide: "jetbrains", project: title.slice(0, 200) };
   }
 }

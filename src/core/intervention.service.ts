@@ -1,12 +1,12 @@
-import { WebSocketServer, type WebSocket } from 'ws';
-import notifier from 'node-notifier';
-import { randomUUID } from 'node:crypto';
-import { logger } from './logger.js';
-import { interventionsFired } from './metrics.js';
+import { WebSocketServer, type WebSocket } from "ws";
+import notifier from "node-notifier";
+import { randomUUID } from "node:crypto";
+import { logger } from "./logger.js";
+import { interventionsFired } from "./metrics.js";
 
 // ---- Types -----------------------------------------------------------------
 
-export type Severity = 'low' | 'med' | 'high';
+export type Severity = "low" | "med" | "high";
 
 export interface Intervention {
   id: string;
@@ -26,30 +26,39 @@ export class InterventionService {
     const port = Number(process.env.INTERVENTION_PORT) || 8001;
 
     this._wss = new WebSocketServer({
-      host: '127.0.0.1', // Never 0.0.0.0
+      host: "127.0.0.1", // Never 0.0.0.0
       port,
     });
 
-    this._wss.on('connection', (ws) => {
+    this._wss.on("connection", (ws) => {
       this._clients.add(ws);
-      logger.debug({ total: this._clients.size }, 'Intervention client connected');
+      logger.debug(
+        { total: this._clients.size },
+        "Intervention client connected",
+      );
 
-      ws.on('close', () => {
+      ws.on("close", () => {
         this._clients.delete(ws);
-        logger.debug({ total: this._clients.size }, 'Intervention client disconnected');
+        logger.debug(
+          { total: this._clients.size },
+          "Intervention client disconnected",
+        );
       });
 
-      ws.on('error', (err) => {
-        logger.warn({ err }, 'Intervention WebSocket client error');
+      ws.on("error", (err) => {
+        logger.warn({ err }, "Intervention WebSocket client error");
         this._clients.delete(ws);
       });
     });
 
-    this._wss.on('error', (err) => {
-      logger.error({ err }, 'Intervention WebSocket server error');
+    this._wss.on("error", (err) => {
+      logger.error({ err }, "Intervention WebSocket server error");
     });
 
-    logger.info({ port, host: '127.0.0.1' }, 'Intervention WebSocket server started');
+    logger.info(
+      { port, host: "127.0.0.1" },
+      "Intervention WebSocket server started",
+    );
   }
 
   async stop(): Promise<void> {
@@ -69,7 +78,7 @@ export class InterventionService {
     };
 
     interventionsFired.inc({ rule, severity });
-    logger.info({ intervention }, 'Intervention fired');
+    logger.info({ intervention }, "Intervention fired");
 
     // Broadcast to all connected WebSocket clients
     const payload = JSON.stringify(intervention);
@@ -77,14 +86,14 @@ export class InterventionService {
       try {
         ws.send(payload);
       } catch (err) {
-        logger.warn({ err }, 'Failed to send intervention to client');
+        logger.warn({ err }, "Failed to send intervention to client");
       }
     }
 
     // OS toast for high severity
-    if (severity === 'high') {
+    if (severity === "high") {
       notifier.notify({
-        title: '⚠️ Flow Agent',
+        title: " Flow Agent",
         message: message.slice(0, 256),
         sound: false,
         wait: false,
