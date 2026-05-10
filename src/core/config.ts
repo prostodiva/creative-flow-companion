@@ -21,8 +21,8 @@ const ConfigSchema = z.object({
   OLLAMA_MODEL: z.string().default("llama3.2"),
   INTERVENTION_COOLDOWN_MS: z.number().default(10 * 60 * 1000),
   TAB_OVERLOAD_THRESHOLD: z.number().default(10),
-  COMMIT_IDLE_MINUTES: z.number().default(45),
-  VIDEO_IDLE_MINUTES: z.number().default(60),
+  COMMIT_IDLE_MINUTES: z.number().default(30),
+  VIDEO_IDLE_MINUTES: z.number().default(30),
   CHROMA_URL: z.string().url().default("http://localhost:8000"),
 });
 
