@@ -60,7 +60,7 @@ function createNodes(deps: OrchestratorDeps) {
       appRepo.getCurrentApp(),
       appRepo.getVideoConsumptionMs(oneHourAgo, now, "entertainment"),
       appRepo.getVideoConsumptionMs(oneHourAgo, now, "work"),
-      ideRepo.getActiveFilesLast15Min(),
+      ideRepo.getRecentlyTouchedFiles(3),
       ideRepo.getGitDiffSummary(),
       ideRepo.getTodoComments(),
     ]);
@@ -77,7 +77,7 @@ function createNodes(deps: OrchestratorDeps) {
       (lastCommitMinutes > config.COMMIT_IDLE_MINUTES &&
         chromeTabCount >= config.TAB_OVERLOAD_THRESHOLD &&
         keystrokesLast5Min === 0);
-
+//uncomment for testing firing
     // const shouldIntervene = true;
 
     // Add this log right after

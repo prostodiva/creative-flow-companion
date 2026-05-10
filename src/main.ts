@@ -12,6 +12,9 @@ import { logger } from "./core/logger.js";
 import { runMigrations } from "./db/migrate.js";
 import os from "node:os";
 import path from "node:path";
+//uncomment for testing db - data saving
+// import { collectAndWriteSession } from './core/sessionLogger.js'
+// setTimeout(() => collectAndWriteSession(ideRepo, appRepo), 3000)
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 

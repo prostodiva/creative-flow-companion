@@ -81,27 +81,18 @@ export async function collectAndWriteSession(
   const fromMs = start.getTime();
   const toMs = end.getTime();
 
-  // Gather — using existing repo methods, nothing new needed
-  const [filesTouched, entMs, workMs, lastCommitTs] = await Promise.all([
-    ideRepo.getRecentlyTouchedFiles(20), // up to 20 files
+  const filesTouched = ideRepo.getFilesInWindow(fromMs, toMs);        // ← fixed
+  const appBreakdown = ideRepo.getAppBreakdownInWindow(fromMs, toMs); // ← fixed
+ 
+  // Video consumption from app_activity table (unchanged)
+  const [entMs, lastCommitTs] = await Promise.all([
     appRepo.getVideoConsumptionMs(fromMs, toMs, "entertainment"),
-    appRepo.getVideoConsumptionMs(fromMs, toMs, "work"),
     ideRepo.getLastCommitTs(),
   ]);
-
+ 
   const entertainmentMin = Math.floor(entMs / 60_000);
   const commitCount = lastCommitTs && lastCommitTs > fromMs ? 1 : 0;
-  // Note: if you add a real commit-count query, replace the line above.
-
-  const entPct = Math.round((entMs / WINDOW_MS) * 100);
-  const workPct = Math.round((workMs / WINDOW_MS) * 100);
-  const appBreakdown =
-    entPct > 0 || workPct > 0
-      ? `Safari ~${entPct + workPct}% (${entertainmentMin}min entertainment, ${Math.floor(workMs / 60_000)}min work)`
-      : filesTouched.length > 0
-        ? "VSCode primary"
-        : "Unknown";
-
+ 
   const text = formatDocument({
     start,
     end,
@@ -110,7 +101,18 @@ export async function collectAndWriteSession(
     entertainmentMin,
     commitCount,
   });
-
+ 
+  // ① Console FIRST — readable even if ChromaDB is down
+  console.log("\n╔══ SESSION LOG ══════════════════════════════════════════════");
+  console.log(`║ Period  : ${start.toISOString().slice(0, 16)} → ${end.toISOString().slice(11, 16)}`);
+  console.log(`║ Apps    : ${appBreakdown}`);
+  console.log(`║ Files   : ${filesTouched.join(", ") || "none"}`);
+  console.log(`║ Commits : ${commitCount}`);
+  console.log(`║ Video   : ${entertainmentMin}min entertainment`);
+  console.log(`║ Doc     : ${text}`);
+  console.log("╚════════════════════════════════════════════════════════════\n");
+ 
+  // ② Write to ChromaDB
   const doc: SessionDocument = {
     id: makeSessionId(end),
     text,
@@ -124,13 +126,11 @@ export async function collectAndWriteSession(
       filesTouched: filesTouched.join("|"),
     },
   };
+ 
   await writeSession(doc);
-  logger.info(
-    { sessionId: doc.id },
-    "[SessionLogger] Session written to ChromaDB",
-  );
+  logger.info({ sessionId: doc.id }, "[SessionLogger] Session written to ChromaDB");
 }
-
+ 
 
 let _task: ReturnType<typeof cron.schedule> | null = null;
 
