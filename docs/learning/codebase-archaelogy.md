@@ -1,5 +1,7 @@
 # Professional Codebase archaeology
 
+Below is a template which I will use for each file investigation and exploration for [Archaeology Notes: exploration notes; discoveries; runtime tracing; hypotheses](../archaeology/)
+
 To create a mental model when analyzing the codebase. 
 
 1. Find the entrypoint → trace one happy path. What actually executes first?   

@@ -6,12 +6,12 @@ import { IdeRepo } from "./repos/ide.repo.js";
 import { InterventionService } from "./core/intervention.service.js";
 import { startSessionLogger } from "./core/sessionLogger.js";
 import { AppActivitySensor } from "./sensors/app-activity.sensor.js";
-import { IdeSensor } from "./sensors/ide/ide.sensor.js";
 import { startOrchestrationLoop } from "./core/orchestrator.js";
 import { logger } from "./core/logger.js";
 import { runMigrations } from "./db/migrate.js";
 import os from "node:os";
 import path from "node:path";
+
 //uncomment for testing db - data saving
 // import { collectAndWriteSession } from './core/sessionLogger.js'
 // setTimeout(() => collectAndWriteSession(ideRepo, appRepo), 3000)
