@@ -1,5 +1,8 @@
 # Engineering Learning Roadmap
 
+## Codebase Archaelogy
+[Codebase Archaelogy](codebase-archaelogy.md)
+
 ## AI Systems
 -  embeddings
 -  vector search
