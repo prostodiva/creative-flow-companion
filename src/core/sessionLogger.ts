@@ -141,11 +141,19 @@ let _task: ReturnType<typeof cron.schedule> | null = null;
 export function startSessionLogger(ideRepo: IdeRepo, appRepo: AppRepo): void {
   logger.info("[SessionLogger] Started — logging every 30 minutes");
 
+  let running = false;
+
   _task = cron.schedule(CRON_EXPR, async () => {
+    if (running) return;
+
+    running = true;
+
     try {
       await collectAndWriteSession(ideRepo, appRepo);
     } catch (err) {
       logger.error({ err }, "[SessionLogger] Failed to write session");
+    } finally {
+      running = false;
     }
   });
 }

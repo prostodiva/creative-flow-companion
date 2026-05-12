@@ -9,7 +9,6 @@ export interface SensorHealth {
 
 export abstract class Sensor {
   abstract readonly name: string;
-
   abstract start(): void;
   abstract stop(): void;
   abstract health(): SensorHealth;

@@ -65,15 +65,15 @@ function formatResult(doc: string, meta: Record<string, unknown>): string {
   return parts.join(", ");
 }
 
-export interface RetrieveInput {
+export type RetrieveInput = {
   activeApp: string;
   recentFiles: string[];
-  entertainmentVideoMs: number;
-  commitCount?: number;
-}
+  commitCount: number;
+  entertainmentVideoMs: number; 
+};
 
 export async function retrieveMemory(input: RetrieveInput): Promise<string[]> {
-  const entMin = Math.floor(input.entertainmentVideoMs / 60_000);
+  const entMin = Math.floor((input.entertainmentVideoMs ?? 0) / 60_000);
   const files = input.recentFiles.join(", ") || "none";
   const queryText =
     `User behavior: ${input.activeApp} active, ` +

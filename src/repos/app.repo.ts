@@ -1,4 +1,5 @@
 /**
+ * appRepo = “write a log line about what was on screen"
  * Every class should answer one question cleanly. 
  * For AppRepo, that question is: "how do I read and write app activity data to SQLite?"
  * The repo has one job: reads data, writes data, runs queries. 
@@ -41,7 +42,9 @@ export class AppRepo {
     upsertTitleClassification: loadSql("queries/app/upsert_title_classification.sql"),
   };
 
-  constructor(private db: Database) {}
+  constructor(private db: Database) {
+    console.log("DB constructor:", this.db?.constructor?.name)
+  }
 
   private titleHash(title: string, domain?: string): string {
     return createHash('sha256')
@@ -85,11 +88,32 @@ export class AppRepo {
     return row?.total ?? 0;
   }
 
-  getVideoConsumptionTotalByCategory(fromMs: number, toMs: number, category: string): number {
-    const row = this.db.prepare(this._sql.getVideoConsumptionTotalByCategory)
-    .get([fromMs, toMs, category]) as { total: number } | undefined
-    return row?.total ?? 0;
+  // getVideoConsumptionTotalByCategory(fromMs: number, toMs: number, category: string): number {
+  //   const row = this.db.prepare(this._sql.getVideoConsumptionTotalByCategory)
+  //   .get([fromMs, toMs, category]) as { total: number } | undefined
+  //   return row?.total ?? 0;
+  // }
+
+    getVideoConsumptionTotalByCategory(
+    fromMs: number,
+    toMs: number,
+    category: string
+  ): number {
+    const stmt = this.db.prepare(`
+    SELECT COALESCE(SUM(duration_ms), 0) as total
+    FROM app_activity
+    WHERE ts > ?
+      AND ts <= ?
+      AND category = ?;
+  `);
+
+    const row = stmt.get(fromMs, toMs, category) as
+      | { total: number }
+      | undefined
+
+    return row?.total ?? 0
   }
+
 
   getChromeTabCount(fromMs: number): number {
     const row = this.db.prepare(this._sql.getChromeTabCount).get([fromMs]) as

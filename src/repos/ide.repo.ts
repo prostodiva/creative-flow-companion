@@ -1,4 +1,5 @@
 /**
+ * ideRepo - a snapshot: “what counts as an active work session right now?”
  * Every class should answer one question cleanly. 
  * For IdeRepo, that question is: "how do I read and write app activity data to SQLite?"
  * The repo has one job: reads data, writes data, runs queries. 
