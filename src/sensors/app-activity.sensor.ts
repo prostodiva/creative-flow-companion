@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { Ollama } from "@langchain/ollama";
 import type { AppRepo } from "../repos/app.repo.js";
+import { classifyTitle } from '../utils/titleClassifier.js'  
 import { logger } from "../core/logger.js";
 import { config } from "../core/config.js";
 import type { IdeRepo } from "../repos/ide.repo.js";
@@ -140,7 +141,7 @@ export class AppActivitySensor extends Sensor {
       );
 
       if (!category) {
-        category = this.appRepo.classifyTitle(this.lastTitle, this.lastDomain);
+        category = classifyTitle(this.lastTitle, this.lastDomain);
 
         // Classify video if Chrome tab has audio, regardless of fullscreen
         if (this.lastApp === "Google Chrome" && this.lastAudible) {
@@ -150,11 +151,7 @@ export class AppActivitySensor extends Sensor {
           );
         }
 
-        await this.appRepo.cacheCategory(
-          this.lastTitle,
-          this.lastDomain || undefined,
-          category,
-        );
+        this.appRepo.cacheCategory(this.lastTitle, this.lastDomain ?? undefined, category);
       }
 
       await this.appRepo.insertMany([
@@ -346,7 +343,7 @@ export class AppActivitySensor extends Sensor {
       WORK_DOMAINS.has(domain) &&
       WORK_KEYWORDS.some((k) => text.includes(k))
     ) {
-      await this.appRepo.cacheCategory(title, domain, "work"); // <- changed from 'work_video'
+      await this.appRepo.cacheCategory(title, domain, "work"); 
       return "work";
     }
 
@@ -354,11 +351,11 @@ export class AppActivitySensor extends Sensor {
     const entScore = ENT_KEYWORDS.filter((k) => text.includes(k)).length;
 
     if (workScore > entScore && workScore > 0) {
-      await this.appRepo.cacheCategory(title, domain, "work"); // <- changed
+      await this.appRepo.cacheCategory(title, domain, "work"); 
       return "work";
     }
     if (entScore > 0) {
-      await this.appRepo.cacheCategory(title, domain, "entertainment"); // <- changed
+      await this.appRepo.cacheCategory(title, domain, "entertainment"); 
       return "entertainment";
     }
 
@@ -367,7 +364,7 @@ export class AppActivitySensor extends Sensor {
       const result = await this.llm.invoke(prompt);
       const category = result.toLowerCase().includes("work")
         ? "work"
-        : "entertainment"; // <- changed
+        : "entertainment"; 
       await this.appRepo.cacheCategory(title, domain, category);
       return category;
     } catch {

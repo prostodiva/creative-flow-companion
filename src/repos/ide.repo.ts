@@ -1,3 +1,9 @@
+/**
+ * Every class should answer one question cleanly. 
+ * For IdeRepo, that question is: "how do I read and write app activity data to SQLite?"
+ * The repo has one job: reads data, writes data, runs queries. 
+ */
+
 import type { Database } from 'better-sqlite3'
 import { loadSql } from '../db/sql.js'
 import { getGitDiffSummary, getTodoComments } from '../core/git-intel.js'
@@ -9,13 +15,17 @@ export interface IdeEvent {
   project?: string
 }
 
+export interface AppBreakdown {
+  appName: string
+  totalMs: number
+  pct: number           
+}
+
 export interface IdeSummaryRow {
   file: string
   project: string
   total_ms: number
 }
-
-// ── New: payload for active_work_sessions inserts ────────────────────────────
 export interface ActiveSessionPayload {
   timestamp: number       // Date.now()
   appName: string         // "Code", "Safari", "Chrome" …
@@ -36,7 +46,7 @@ export class IdeRepo {
     getKeystrokeCountSince:  loadSql('queries/ide/get_keystroke_count_since.sql'),
     getRecentlyTouchedFiles: loadSql('queries/ide/get_recently_touched_files.sql'),
     upsertLastCommitTs:      loadSql('queries/ide/upsert_last_commit_ts.sql'),
-    // ── RAG additions ────────────────────────────────────────────────────────
+
     insertActiveSession:     loadSql('queries/ide/insert_active_session.sql'),
     cleanupActiveSessions:   loadSql('queries/ide/cleanup_active_sessions.sql'),
     getFilesInWindow:        loadSql('queries/ide/get_files_in_window.sql'),
@@ -45,7 +55,6 @@ export class IdeRepo {
 
   constructor(private db: Database) {}
 
-  // ── Existing methods — UNCHANGED ──────────────────────────────────────────
 
   insertKeystroke(evt: IdeEvent): void {
     this.db.prepare(this._sql.insertIdeEvent).run([evt.ts, evt.file, evt.event_type])
@@ -97,16 +106,14 @@ export class IdeRepo {
     this.db.prepare(this._sql.upsertLastCommitTs).run([ts.toString()])
   }
 
-  // ── CHANGED: 1hr → 15min cutoff, queries active_work_sessions now ─────────
-  async getRecentlyTouchedFiles(limit: number): Promise<string[]> {
-    const cutoff = Date.now() - 15 * 60 * 1000  // was: 60 * 60 * 1000
+  getRecentlyTouchedFiles(limit: number): string[] {
+    const cutoff = Date.now() - 15 * 60 * 1000  
 
     const rows = this.db
       .prepare(this._sql.getRecentlyTouchedFiles)
       .all([cutoff, limit]) as { file: string }[]
 
-    // Return [] instantly if nothing touched in last 15 min — no stale context
-    return rows.map((r) => r.file.split('/').pop() ?? r.file)
+    return rows.map((r) => r.file) 
   }
 
   async getGitDiffSummary(): Promise<string> {
@@ -117,12 +124,7 @@ export class IdeRepo {
     return await getTodoComments(process.cwd())
   }
 
-  // ── NEW: active_work_sessions writes ─────────────────────────────────────
-
-  /**
-   * Called by ide.sensor.ts / app-activity.sensor.ts every poll tick (5s).
-   * Writes one row into active_work_sessions.
-   */
+  
   insertActiveSession(payload: ActiveSessionPayload): void {
     this.db.prepare(this._sql.insertActiveSession).run([
       payload.timestamp,
@@ -134,41 +136,32 @@ export class IdeRepo {
     ])
   }
 
-  /**
-   * Called every 60s by the sensor loop to prune rows older than 15 minutes.
-   * Returns number of rows deleted (useful for debug logging).
-   */
   cleanupOldSessions(): number {
     const cutoff = Date.now() - 15 * 60 * 1000
     const result = this.db.prepare(this._sql.cleanupActiveSessions).run([cutoff])
     return result.changes
   }
 
-  /**
-   * Used by sessionLogger: coding files touched within an explicit time range.
-   * Unlike getRecentlyTouchedFiles (fixed 15min), this covers the full session window.
-   */
   getFilesInWindow(fromMs: number, toMs: number, limit = 20): string[] {
     const rows = this.db
       .prepare(this._sql.getFilesInWindow)
       .all([fromMs, toMs, limit]) as { file: string }[]
-    return rows.map((r) => r.file.split('/').pop() ?? r.file)
+    return rows.map((r) => r.file) 
   }
 
-  /**
-   * Used by sessionLogger: which app dominated the session window?
-   * Returns formatted string e.g. "Code 60%, Google Chrome 40%"
-   */
-  getAppBreakdownInWindow(fromMs: number, toMs: number): string {
-    const rows = this.db
-      .prepare(this._sql.getAppBreakdownInWindow)
-      .all([fromMs, toMs]) as { app_name: string; total_ms: number }[]
+  getAppBreakdownInWindow(fromMs: number, toMs: number): AppBreakdown[] {
+  const rows = this.db
+    .prepare(this._sql.getAppBreakdownInWindow)
+    .all([fromMs, toMs]) as { app_name: string; total_ms: number }[]
 
-    const total = rows.reduce((s, r) => s + r.total_ms, 0) || 1
+  const total = rows.reduce((s, r) => s + r.total_ms, 0) || 1
 
-    return rows
-      .filter((r) => r.app_name !== 'unknown')
-      .map((r) => `${r.app_name} ${Math.round((r.total_ms / total) * 100)}%`)
-      .join(', ') || 'Unknown'
+  return rows
+    .filter((r) => r.app_name !== 'unknown')
+    .map((r) => ({
+      appName:  r.app_name,
+      totalMs:  r.total_ms,
+      pct:      Math.round((r.total_ms / total) * 100),
+    }))
   }
 }

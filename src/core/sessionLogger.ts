@@ -5,8 +5,8 @@ import { writeSession, type SessionDocument } from "../core/memoryWriter.js";
 import type { IdeRepo } from "../repos/ide.repo.js";
 import type { AppRepo } from "../repos/app.repo.js";
 
-const WINDOW_MS = 30 * 60 * 1_000; // 30 minutes
-const CRON_EXPR = "0 */30 * * * *"; // every 30 min on the hour/half-hour
+const WINDOW_MS = 30 * 60 * 1_000; 
+const CRON_EXPR = "0 */30 * * * *"; 
 
 function formatDocument(opts: {
   start: Date;
@@ -81,14 +81,18 @@ export async function collectAndWriteSession(
   const fromMs = start.getTime();
   const toMs = end.getTime();
 
-  const filesTouched = ideRepo.getFilesInWindow(fromMs, toMs);        // ← fixed
-  const appBreakdown = ideRepo.getAppBreakdownInWindow(fromMs, toMs); // ← fixed
+  const filesTouched = ideRepo.getFilesInWindow(fromMs, toMs)
+  const breakdown    = ideRepo.getAppBreakdownInWindow(fromMs, toMs)
+
+  const appBreakdown = breakdown.length > 0
+    ? breakdown.map((b) => `${b.appName} ${b.pct}%`).join(', ')
+    : 'Unknown'
+
  
-  // Video consumption from app_activity table (unchanged)
-  const [entMs, lastCommitTs] = await Promise.all([
-    appRepo.getVideoConsumptionMs(fromMs, toMs, "entertainment"),
+  const [lastCommitTs] = await Promise.all([
     ideRepo.getLastCommitTs(),
-  ]);
+  ])
+  const entMs = appRepo.getVideoConsumptionTotalByCategory(fromMs, toMs, 'entertainment')
  
   const entertainmentMin = Math.floor(entMs / 60_000);
   const commitCount = lastCommitTs && lastCommitTs > fromMs ? 1 : 0;

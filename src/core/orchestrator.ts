@@ -43,34 +43,23 @@ function createNodes(deps: OrchestratorDeps) {
     const oneHourAgo = now - 60 * 60 * 1000;
     const fiveMinAgo = now - 5 * 60 * 1000;
 
-    const [
-      tabs,
-      lastCommit,
-      keystrokes,
-      currentApp,
-      entertainmentVideoMs,
-      workVideoMs,
-      recentFiles,
-      gitDiffSummary,
-      todoList,
-    ] = await Promise.all([
-      appRepo.getChromeTabCount(now - 60000),
+    const chromeTabCount       = appRepo.getChromeTabCount(now - 60000) ?? 0
+    const activeApp            = appRepo.getCurrentApp() ?? 'Unknown'
+    const entertainmentVideoMs = appRepo.getVideoConsumptionTotalByCategory(oneHourAgo, now, 'entertainment')
+    const workVideoMs          = appRepo.getVideoConsumptionTotalByCategory(oneHourAgo, now, 'work')
+
+    const [lastCommit, keystrokes, recentFiles, gitDiffSummary, todoList] = await Promise.all([
       ideRepo.getLastCommitTs(),
       ideRepo.getKeystrokeCountSince(fiveMinAgo),
-      appRepo.getCurrentApp(),
-      appRepo.getVideoConsumptionMs(oneHourAgo, now, "entertainment"),
-      appRepo.getVideoConsumptionMs(oneHourAgo, now, "work"),
       ideRepo.getRecentlyTouchedFiles(3),
       ideRepo.getGitDiffSummary(),
       ideRepo.getTodoComments(),
-    ]);
+    ])
 
-    const chromeTabCount = tabs ?? 0;
     const lastCommitMinutes = lastCommit
       ? Math.floor((now - lastCommit) / 60000)
       : 999;
     const keystrokesLast5Min = keystrokes ?? 0;
-    const activeApp = currentApp ?? "Unknown";
 
     const shouldIntervene =
       entertainmentVideoMs >= config.VIDEO_IDLE_MINUTES * 60 * 1000 ||
