@@ -1,98 +1,56 @@
 # AppActivitySensor class - Sensor polling loop that continuously collects telemetry. To record.
 
+ask macOS what is frontmost
+write a raw row with duration
+
 1. Purpose: Turn “what’s on screen right now on macOS?” into time-bucketed rows in SQLite so the rest of the system (orchestrator, session logger) can aggregate “what happened over the last N minutes.” The purpose is to record, not decide. 
 
-2. Summary: This class runs a 2-second setInterval, each tick calls getActiveWindow() (AppleScript), then if there was a previous foreground snapshot (lastApp + duration_ms > 0), it classifies/caches category, writes appRepo.insertMany (one activity segment for the previous window state over duration_ms) and ideRepo.insertActiveSession (a parallel “session” row), then always updates in-memory last* + lastTs to the current window. Every 30 ticks it runs ideRepo.cleanupOldSessions(). Health is exposed for observability.
+2. Summary: This class runs a 2-second setInterval, each tick calls getActiveWindow() (AppleScript)
+The class is just a polling loop that collects raw telemetry and writes it:
+- start/stop creates a 2-second setInterval
+- tick updates health counters and calls poll
+- poll:
+    runs the AppleScript in getActiveWindow
+    keeps the previous window as this.last
+    calculates durationMs
+    builds one AppActivity with category: "raw" and calls appRepo.insertMany([activity])
+- getActiveWindow is the only OS interaction
 
-Runtime role: A high-frequency writer on the event loop: periodic I/O (AppleScript + DB + sometimes LLM). It runs concurrently with orchestrator/session cron jobs in the same process.
 
-AppActivitySensor uses 4 policy layers:
-* mediaSignals
-    → derives signals from OS/browser state (URL, hostname, audible, fullscreen)
-    → answers: “Is this media-like activity and what raw signals exist?”
-* mediaDomains
-    → shared static constants (whitelists / heuristics)
-    → no logic, no decisions, just configuration data
-* activityCategoryPolicy
-    → coarse classification of activity:
-    → work | entertainment | unknown
-    → based on app + domain + title patterns
-* videoClassifierPolicy
-    → specialized refinement layer for video content
-    → uses keywords + optional LLM fallback
-    → converts ambiguous Chrome/video signals into:
-    → work_video | entertainment_video
+Runtime role: A high-frequency writer on the event loop: periodic I/O (AppleScript). It runs concurrently with orchestrator/session cron jobs in the same process.
+
 
 3. Pattern: 
 Polling / sampling loop — fixed interval, pull OS state.
-Repository pattern — sensor talks to AppRepo / IdeRepo, not raw SQL.
-Manual dependency injection — repos passed in constructor.
-State machine–lite — last* fields are “previous sample”; current sample becomes next last*.
+Repository pattern — sensor talks to IAppRepo
 Adapter — AppleScript + parsing is an OS adapter boundary.
 
 4. Tradeoffs / coupling / scalability: 
-Coupling:
-* Sensor is tightly coupled to OS-specific extraction (AppleScript + window parsing)
-* Sensor is coupled to persistence layer (AppRepo + IdeRepo)
-* Sensor is partially coupled to ML policy (videoClassifierPolicy + LLM inside runtime path)
-* Category logic is split across sensor + policy modules → implicit decision graph
+- Tightly coupled to macOS: AppleScript strings, osascript binary, Chrome/Safari window model. Not portable to Windows/Linux.
+- Coupled to AppActivity shape: if you change the table, sensor must change.
+- Time coupling: assumes the process stays alive. If the app sleeps, durationMs will spike on wake.
 
 Scalability: 
-* Horizontal scaling: ❌ not applicable (single-device telemetry collector)
-* Vertical scaling: limited by:
-* AppleScript polling cost (2s interval)
-* synchronous DB writes per tick
-* occasional LLM calls inside sensor path (latency spikes)
-* Works well for single-user local telemetry system, not distributed ingestion
+- Write volume: 1 row per change, worst case 1 row per 2s → ∼43,200 rows per day per user. SQLite handles this, but you will need pruning or rollup after 7-30 days.
+- Single-threaded: all ticks share the Node event loop. AppleScript exec is async but still spawns a process each tick.
+- No backpressure: if insertMany slows, ticks queue up. Current code does not await, so you could lose ordering.
 
 Risk:    
-* Sensor has mixed responsibilities:
-    * sensing (good)
-    * classification (borderline)
-    * persistence (OK but tightly coupled)
-    * caching logic (cross-cutting concern)
-* LLM invocation inside sensor can introduce:
-    * latency jitter in polling loop
-    * non-deterministic classification timing
-Potential backpressure risk if DB or LLM slows down (no queue buffer)
+- AppleScript failure: returns "unknown" and you write a gap. No retry.
+- Missed ticks during sleep or debugger pause: duration is overcounted.
+- No persistence of this.last on shutdown: if you stop the app mid-window, that last slice is lost.
+- Downstream dependency: if the enricher stops, raw rows pile up with category = "raw".
 
 5. reasoning about ownership
-Right now ownership is:
-
-AppActivitySensor owns:
-
-* OS polling (AppleScript)
-* raw signal extraction
-* time slicing (duration_ms)
-* category resolution (partially)
-* caching interaction (via repo abstraction)
-* persistence (writes rows)
-
-It should ONLY own:
-
 * OS polling
 * raw snapshot creation
 * duration calculation
 * forwarding event to persistence layer
 
-It should NOT own:
-
-* videoClassifierPolicy decision logic (should be upstream policy service)
-* caching strategy (belongs to repo/service layer)
-* any LLM calls (should never be in sensor hot path ideally)
-
-
-
 on start:    
 first tick runs after ~2s, then every 2s after that (unless poll() returns early when nothing changed).
-2000 is milliseconds → 2 seconds  
+2000 is milliseconds → 2 seconds 
+First tick fires after ∼2s because setInterval delays. If you need an immediate sample, call this.tick() once in start() before creating the interval.
+2000 ms is a tradeoff: lower gives better resolution but more AppleScript overhead, higher reduces accuracy for quick app switches. 
 
 
-poll():
-getActiveWindow (AppleScript / OS query)
-Compare to last state; maybe return early if unchanged
-Duration = time since last snapshot
-Category (cache / classify / optional LLM for video)
-Persist: appRepo.insertMany + ideRepo.insertActiveSession
-Advance last-seen state
-Occasionally cleanupOldSessions

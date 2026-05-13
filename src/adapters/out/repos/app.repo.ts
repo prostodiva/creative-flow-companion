@@ -6,10 +6,10 @@
  */
 
 
-import type { Database } from "better-sqlite3";
+import type { Database, Statement } from 'better-sqlite3';
 import { createHash } from "crypto";
 import { loadSql } from "../../../infrastructure/db/sql.js";
-import { IAppRepo } from "../../../domain/ports/out/IAppRepo.js";
+import { IAppRepo, RawActivity } from "../../../domain/ports/out/IAppRepo.js";
 import { AppActivity } from '../../../domain/models/activity.js';
 
 export interface AppSummaryRow {
@@ -31,8 +31,24 @@ export class AppRepo implements IAppRepo {
     upsertTitleClassification: loadSql("queries/app/upsert_title_classification.sql"),
   };
 
+  private getRawStmt!: Statement;     
+  private updateCatStmt!: Statement; 
+
   constructor(private db: Database) {
     console.log("DB constructor:", this.db?.constructor?.name)
+  }
+
+  private ensureStmts() {
+    if (!this.getRawStmt) {
+      this.getRawStmt = this.db.prepare(
+        loadSql("queries/app/get_raw_activities.sql")
+      );
+    }
+    if (!this.updateCatStmt) {
+      this.updateCatStmt = this.db.prepare(
+        loadSql("queries/app/update_activity_category.sql")
+      );
+    }
   }
 
   private titleHash(title: string, domain?: string): string {
@@ -135,4 +151,16 @@ export class AppRepo implements IAppRepo {
       .get([this.titleHash(title, domain)]) as { category: string } | undefined
     return row?.category ?? null
   }
+
+   
+ async getRawActivities(limit: number): Promise<RawActivity[]> {
+    this.ensureStmts();
+    return this.getRawStmt!.all(limit) as RawActivity[];
+  }
+
+  async updateActivityCategory(id: number, category: string): Promise<void> {
+    this.ensureStmts();
+    this.updateCatStmt!.run(category, id);
+  }
+
 }
