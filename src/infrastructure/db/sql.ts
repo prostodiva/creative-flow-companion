@@ -6,7 +6,7 @@ const cache = new Map<string, string>();
 
 function projectRoot(): string {
   const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "..");
+  return resolve(here, "..", "..", "..");
 }
 
 export function loadSql(assetPathFromDbRoot: string): string {

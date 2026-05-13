@@ -1,20 +1,16 @@
-import "dotenv/config";
 import Database from "better-sqlite3";
+import "dotenv/config";
 import { existsSync, unlinkSync } from "fs";
-import { AppRepo } from "./repos/app.repo.js";
-import { IdeRepo } from "./repos/ide.repo.js";
-import { InterventionService } from "./core/intervention.service.js";
-import { startSessionLogger } from "./core/sessionLogger.js";
-import { AppActivitySensor } from "./sensors/app-activity.sensor.js";
-import { startOrchestrationLoop } from "./core/orchestrator.js";
-import { logger } from "./core/logger.js";
-import { runMigrations } from "./db/migrate.js";
 import os from "node:os";
 import path from "node:path";
-
-//uncomment for testing db - data saving
-// import { collectAndWriteSession } from './core/sessionLogger.js'
-// setTimeout(() => collectAndWriteSession(ideRepo, appRepo), 3000)
+import { AppActivitySensor } from './adapters/in/sensors/app-activity.sensor.js';
+import { AppRepo } from './adapters/out/repos/app.repo.js';
+import { IdeRepo } from './adapters/out/repos/ide.repo.js';
+import { InterventionService } from './domain/use-cases/intervention.service.js';
+import { startSessionLogger } from "./domain/use-cases/sessionLogger.js";
+import { runMigrations } from "./infrastructure/db/migrate.js";
+import { logger } from "./infrastructure/logger.js";
+import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 
@@ -41,7 +37,7 @@ const appSensor = new AppActivitySensor(appRepo, ideRepo);
 
 appSensor.start();
 
-startOrchestrationLoop({ appRepo, ideRepo, interventionService });
+startOrchestrationLoop({ ideRepo, appRepo, interventionService });
 startSessionLogger(ideRepo, appRepo);
 
 logger.info("Flow Agent Telemetry v2 ready");

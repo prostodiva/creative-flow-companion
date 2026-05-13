@@ -1,11 +1,10 @@
-import { PollingSensor } from "../base/polling.sensor.js";
-import { IpcServer } from "../ide/ipc.js";
-import type { IdeRepo } from "../../repos/ide.repo.js";
-import { redact } from "../../utils/redact.js";
-import { logger } from "../../core/logger.js";
 import { execFile } from "child_process";
-import { promisify } from "util";
 import path from "path";
+import { promisify } from "util";
+import { logger } from "../../../../infrastructure/logger.js";
+import type { IdeRepo } from "../../../out/repos/ide.repo.js";
+import { PollingSensor } from "../base/polling.sensor.js";
+import { IpcServer } from "./ipc.js";
 
 const execFileAsync = promisify(execFile);
 

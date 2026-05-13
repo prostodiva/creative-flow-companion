@@ -1,7 +1,7 @@
 // src/core/memoryRetriever.ts
 import { ChromaClient, type Collection } from "chromadb";
-import { config } from "./config.js";
-import { logger } from "./logger.js";
+import { config } from "../../infrastructure/config.js";
+import { logger } from "../../infrastructure/logger.js";
 
 const COLLECTION = "coach_sessions";
 const TOP_K = 3;

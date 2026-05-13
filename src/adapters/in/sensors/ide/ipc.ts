@@ -1,9 +1,9 @@
-import { createServer, type Server } from "node:net";
-import { unlink, chmod } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { EventEmitter } from "node:events";
-import { logger } from "../../core/logger.js";
-import { redact } from "../../utils/redact.js";
+import { existsSync } from "node:fs";
+import { chmod, unlink } from "node:fs/promises";
+import { createServer, type Server } from "node:net";
+import { logger } from "../../../../infrastructure/logger.js";
+import { redact } from "../../../../utils/redact.js";
 
 export const SOCKET_PATH = "/tmp/flow-agent-ide.sock";
 

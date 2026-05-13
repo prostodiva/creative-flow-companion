@@ -1,6 +1,6 @@
+import { logger } from "../../../../infrastructure/logger.js";
+import { sensorErrorsTotal, sensorTicksTotal } from "../../../../infrastructure/metrics.js";
 import { Sensor, type SensorHealth } from "./sensor.js";
-import { logger } from "../../core/logger.js";
-import { sensorTicksTotal, sensorErrorsTotal } from "../../core/metrics.js";
 
 // ---- Configuration ---------------------------------------------------------
 

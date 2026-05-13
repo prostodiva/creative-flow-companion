@@ -1,17 +1,16 @@
-import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { Ollama } from "@langchain/ollama";
-import { logger } from "./logger.js";
 import cron from "node-cron";
-import type { AppRepo } from "../repos/app.repo.js";
-import type { IdeRepo } from "../repos/ide.repo.js";
+import { config } from "../../infrastructure/config.js";
+import { logger } from "../../infrastructure/logger.js";
+import { IAppRepo } from "../ports/out/IAppRepo.js";
+import { IIdeRepo } from "../ports/out/IIdeRepo.js";
 import type { InterventionService } from "./intervention.service.js";
 import { retrieveMemory } from "./memoryRetriever.js";
-import chalk from "chalk";
-import { config } from "./config.js";
 
 interface OrchestratorDeps {
-  appRepo: AppRepo;
-  ideRepo: IdeRepo;
+  appRepo: IAppRepo;
+  ideRepo: IIdeRepo;
   interventionService: InterventionService;
 }
 

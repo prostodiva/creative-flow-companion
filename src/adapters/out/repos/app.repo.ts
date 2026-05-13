@@ -8,20 +8,9 @@
 
 import type { Database } from "better-sqlite3";
 import { createHash } from "crypto";
-import { loadSql } from "../db/sql.js";
-
-export interface AppActivity {
-  id?: number;
-  ts: number;
-  app: string;
-  title: string;
-  domain?: string | null; 
-  is_fullscreen?: boolean;
-  has_audio?: boolean;
-  category?: string | null; 
-  duration_ms: number;
-  chrome_tab_count?: number | null;
-}
+import { loadSql } from "../../../infrastructure/db/sql.js";
+import { IAppRepo } from "../../../domain/ports/out/IAppRepo.js";
+import { AppActivity } from '../../../domain/models/activity.js';
 
 export interface AppSummaryRow {
   app: string;
@@ -29,7 +18,7 @@ export interface AppSummaryRow {
   tab_count: number;
 }
 
-export class AppRepo {
+export class AppRepo implements IAppRepo {
   private readonly _sql = {
     insertAppActivity: loadSql("queries/app/insert_app_activity.sql"),
     getVideoConsumptionTotal: loadSql("queries/app/get_video_consumption_total.sql"),
@@ -53,24 +42,24 @@ export class AppRepo {
   }
 
   insertMany(activities: AppActivity[]): void {
-    const stmt = this.db.prepare(this._sql.insertAppActivity);
-    const insert = this.db.transaction((acts: AppActivity[]) => {
-      for (const a of acts) {
-        stmt.run([
-          a.ts,
-          a.app,
-          a.title,
-          a.domain ?? null,
-          a.is_fullscreen ? 1 : 0,
-          a.has_audio ? 1 : 0,
-          a.category ?? null,
-          a.duration_ms,
-          a.chrome_tab_count ?? null,
-        ]);
-      }
-    });
-    insert(activities);
-  }
+  const stmt = this.db.prepare(this._sql.insertAppActivity);
+  const insertMany = this.db.transaction((acts: AppActivity[]) => {
+    for (const a of acts) {
+      stmt.run([
+        a.ts,                    // ts
+        a.appName,               // app
+        a.windowTitle,           // title
+        a.domain ?? null,        // domain
+        a.isFullscreen ?? 0,     // is_fullscreen - add to interface or default to 0
+        a.hasAudio ?? 0,         // has_audio - add to interface or default to 0
+        a.category,              // category
+        a.durationMs,            // duration_ms
+        a.chromeTabCount ?? 0    // chrome_tab_count - add to interface or default to 0
+      ]);
+    }
+  });
+  insertMany(activities);
+}
 
     cacheCategory(title: string, domain: string | undefined, category: string): void {
     this.db.prepare(this._sql.upsertTitleClassification).run([

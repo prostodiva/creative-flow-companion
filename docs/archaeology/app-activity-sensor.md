@@ -45,7 +45,7 @@ Scalability:
 * occasional LLM calls inside sensor path (latency spikes)
 * Works well for single-user local telemetry system, not distributed ingestion
 
-Risk:     
+Risk:    
 * Sensor has mixed responsibilities:
     * sensing (good)
     * classification (borderline)

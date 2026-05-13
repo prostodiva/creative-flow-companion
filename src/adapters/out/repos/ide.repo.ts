@@ -6,8 +6,10 @@
  */
 
 import type { Database } from 'better-sqlite3'
-import { loadSql } from '../db/sql.js'
-import { getGitDiffSummary, getTodoComments } from '../core/git-intel.js'
+import { loadSql } from "../../../infrastructure/db/sql.js";
+import { getGitDiffSummary, getTodoComments } from '../../../infrastructure/git-intel.js'
+import { IIdeRepo } from '../../../domain/ports/out/IIdeRepo.js'
+import { ActiveSessionPayload, AppBreakdown } from '../../../domain/models/activity.js';
 
 export interface IdeEvent {
   ts: number
@@ -16,27 +18,13 @@ export interface IdeEvent {
   project?: string
 }
 
-export interface AppBreakdown {
-  appName: string
-  totalMs: number
-  pct: number           
-}
-
 export interface IdeSummaryRow {
   file: string
   project: string
   total_ms: number
 }
-export interface ActiveSessionPayload {
-  timestamp: number       // Date.now()
-  appName: string         // "Code", "Safari", "Chrome" …
-  filePath: string        // full path, or "__no_file__" for non-IDE rows
-  windowTitle: string     // VSCode window title or browser tab title
-  isCoding: 0 | 1        // 1 = VSCode/Xcode, 0 = everything else
-  durationMs: number      // poll interval in ms (default 5000)
-}
 
-export class IdeRepo {
+export class IdeRepo implements IIdeRepo {
   private readonly _sql = {
     insertIdeEvent:          loadSql('queries/ide/insert_ide_event.sql'),
     getSummary:              loadSql('queries/ide/get_summary.sql'),
@@ -127,14 +115,14 @@ export class IdeRepo {
 
   
   insertActiveSession(payload: ActiveSessionPayload): void {
-    this.db.prepare(this._sql.insertActiveSession).run([
-      payload.timestamp,
+    this.db.prepare(this._sql.insertActiveSession).run(
+      payload.startMs,
       payload.appName,
       payload.filePath,
       payload.windowTitle,
-      payload.isCoding,
+      payload.isCoding ? 1 : 0, 
       payload.durationMs,
-    ])
+    );
   }
 
   cleanupOldSessions(): number {

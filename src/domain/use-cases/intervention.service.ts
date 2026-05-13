@@ -1,8 +1,8 @@
-import { WebSocketServer, type WebSocket } from "ws";
 import notifier from "node-notifier";
 import { randomUUID } from "node:crypto";
-import { logger } from "./logger.js";
-import { interventionsFired } from "./metrics.js";
+import { WebSocketServer, type WebSocket } from "ws";
+import { logger } from "../../infrastructure/logger.js";
+import { interventionsFired } from "../../infrastructure/metrics.js";
 
 // ---- Types -----------------------------------------------------------------
 

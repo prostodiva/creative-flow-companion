@@ -1,9 +1,9 @@
 
 import cron from "node-cron";
-import { logger } from "./logger.js";
-import { writeSession, type SessionDocument } from "../core/memoryWriter.js";
-import type { IdeRepo } from "../repos/ide.repo.js";
-import type { AppRepo } from "../repos/app.repo.js";
+import { logger } from "../../infrastructure/logger.js"
+import { IAppRepo } from "../ports/out/IAppRepo.js";
+import { IIdeRepo } from "../ports/out/IIdeRepo.js";
+import { writeSession, type SessionDocument } from "./memoryWriter.js";
 
 const WINDOW_MS = 30 * 60 * 1_000; 
 const CRON_EXPR = "0 */30 * * * *"; 
@@ -73,8 +73,8 @@ function makeSessionId(date: Date): string {
 
 
 export async function collectAndWriteSession(
-  ideRepo: IdeRepo,
-  appRepo: AppRepo,
+  ideRepo: IIdeRepo,
+  appRepo: IAppRepo,
 ): Promise<void> {
   const end = new Date();
   const start = new Date(end.getTime() - WINDOW_MS);
@@ -138,7 +138,7 @@ export async function collectAndWriteSession(
 
 let _task: ReturnType<typeof cron.schedule> | null = null;
 
-export function startSessionLogger(ideRepo: IdeRepo, appRepo: AppRepo): void {
+export function startSessionLogger(ideRepo: IIdeRepo, appRepo: IAppRepo): void {
   logger.info("[SessionLogger] Started — logging every 30 minutes");
 
   let running = false;

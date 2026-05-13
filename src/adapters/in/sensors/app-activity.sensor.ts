@@ -3,17 +3,17 @@
  * orchestrator / session logger consume stored rows.
  */
 
-import { Sensor, type SensorHealth } from "./base/sensor.js";
+import { Ollama } from "@langchain/ollama";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { Ollama } from "@langchain/ollama";
-import type { AppRepo } from "../repos/app.repo.js";
-import { classifyActivityCategory, type ActivityCategory } from "../policy/activityCategoryPolicy.js";
-import { inferAudibleFromHost } from "../policy/mediaSignals.js";
-import { classifyVideoCategory, type VideoCategory } from "../policy/videoClassifierPolicy.js";
-import { logger } from "../core/logger.js";
-import { config } from "../core/config.js";
-import type { IdeRepo } from "../repos/ide.repo.js";
+import { config } from "../../../infrastructure/config.js";
+import { logger } from "../../../infrastructure/logger.js";
+import { classifyActivityCategory, type ActivityCategory } from "../../../policy/activityCategoryPolicy.js";
+import { inferAudibleFromHost } from "../../../policy/mediaSignals.js";
+import { classifyVideoCategory, type VideoCategory } from "../../../policy/videoClassifierPolicy.js";
+import { IAppRepo } from "../../../domain/ports/out/IAppRepo.js";
+import { IIdeRepo } from "../../../domain/ports/out/IIdeRepo.js";
+import { Sensor, type SensorHealth } from "./base/sensor.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -48,8 +48,8 @@ export class AppActivitySensor extends Sensor {
   private lastTs = Date.now();
 
   constructor(
-    private appRepo: AppRepo,
-    private ideRepo: IdeRepo,
+    private appRepo: IAppRepo,
+    private ideRepo: IIdeRepo,
   ) {
     super();
   }
@@ -146,29 +146,28 @@ export class AppActivitySensor extends Sensor {
       }
 
       await this.appRepo.insertMany([
-        {
-          ts: this.lastTs,
-          app: this.lastApp,
-          title: this.lastTitle,
-          domain: this.lastDomain || null,
-          is_fullscreen: this.lastFullscreen,
-          has_audio: this.lastAudible,
-          category: category || null,
-          duration_ms,
-          chrome_tab_count:
-            this.lastApp === "Google Chrome" ? this.lastChromeTabCount : null,
-        },
-      ]);
-
-      await this.ideRepo.insertActiveSession({
-        timestamp: this.lastTs,
+      {
+        ts: this.lastTs,
         appName: this.lastApp,
-        filePath: this.extractVSCodeFile(this.lastApp, this.lastTitle),
         windowTitle: this.lastTitle,
-        isCoding:
-          this.lastApp === "Code" || this.lastApp === "Xcode" ? 1 : 0,
+      ...(this.lastDomain && { domain: this.lastDomain }), 
+        category: category || 'unknown',
         durationMs: duration_ms,
-      });
+      },
+    ]);
+
+    await this.ideRepo.insertActiveSession({
+      startMs: this.lastTs, // was: timestamp
+      endMs: now, // add this, it's required
+      appName: this.lastApp,
+      filesTouched: [], // add this, it's required
+      keystrokes: 0, // add this, it's required
+      filePath: this.extractVSCodeFile(this.lastApp, this.lastTitle) || '',
+      windowTitle: this.lastTitle,
+      isCoding: false, 
+      durationMs: duration_ms,
+    });
+  
 
       logger.debug(
         {
