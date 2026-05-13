@@ -3,12 +3,14 @@
 1. Purpose: Turn a pile of modules into one running process with a shared db and predictable startup/shutdown
 2. Summary: 
 This file serves as an entry point for the program. 
-loads env(dotenv)  
-opens SQLite under ~/.flow-agent/context.db,  
-validates/recreates a corrupt file, runs migrations,   
-constructs repos and services, starts the app activity sensor,   
-registers two cron-driven background paths (orchestration + session logging),   
-and on SIGINT stops the sensor and closes the DB.   
+   loads env(dotenv)  
+   opens SQLite under ~/.flow-agent/context.db,  
+   validates/recreates a corrupt file, runs migrations,   
+   constructs repos and services, starts the app activity sensor, 
+   starts AppActivitySensor (writes raw only)
+   starts ActivityEnricher (downstream classifier)
+   registers two cron-driven background paths (orchestration + session logging),   
+   on SIGINT stops the sensor and closes the DB.   
 
 Runtime role: Process bootstrap, shared resource lifetime (DB), and starting long-lived timers—not business rules.  
 
@@ -17,7 +19,10 @@ Composition root - main.ts
 Repository pattern - AppRepo / IdeRepo
 Background jobs - node-cron in orchestrator + session logger
 Dependency injection - pass repos into sensor/orchestrator; no framework
-two pipelines: online(orchestrator->intervention) vs offline(session->Chroma)
+tree pipelines: 
+   online(orchestrator->intervention)
+   offline(session->Chroma)
+   enrichment: raw app_activity → categorized app_activity
 
 4. Tradeoffs / coupling / scalability: 
 Coupling: main.ts knows every subsystem. That’s normal for a small daemon; if it grows, people extract a bootstrap() or factory.    
@@ -27,25 +32,27 @@ Risk: IDE-related data in IdeRepo without an IDE sensor in main means orchestrat
 5. reasoning about ownership
 Who owns the DB connection? Today: main.ts creates db and passes it into repos; repos should not open their own DB. That’s correct layering.   
 
-- creates 4 objects(appRepo, ideRepo, interventionService, appSensor)
+- creates 5 objects:
+   appRepo, ideRepo, interventionService, appSensor, activityEnricher
 
 ### What .start() exists?
-appSensor
+   appSensor.start() — begins polling OS
+   activityEnricher.start() — begins 30s batch processing (auto-called in constructor)
+   orchestrator.start() — schedules cron analysis
+   sessionLogger.start() — schedules cron summarization
 
 ### What runs forever?
 None of these block the main thread forever; they schedule work. The process stays alive because Node keeps the event loop (timers, I/O).  
 
-
    poll - observe, collect facts
+   interval — transform facts (enricher)
    cron - to do a task, a scheduled recurring job
 
-The app launches multiple independent long-running loops(These run simultaneously):
-1. Sensor polling loop
-   continuously collects telemetry
-2. Orchestrator cron
-   periodically analyzes telemetry
-3. Session logger cron
-   periodically summarizes long-term memory
+The app launches multiple independent long-running loops(4 run simultaneously):
+1. Sensor polling loop - continuously collects telemetry
+2. Enricher interval — continuously classifies raw → categorized
+3. Orchestrator cron - periodically analyzes telemetry
+4. Session logger cron - periodically summarizes long-term memory
 
 
 ## Follow-up questions:
