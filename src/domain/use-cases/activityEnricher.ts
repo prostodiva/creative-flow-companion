@@ -29,32 +29,41 @@ export class ActivityEnricher {
   }
 
   private async runBatch() {
-    const raws = await this.appRepo.getRawActivities(100);
-    if (raws.length) console.log(`[Enricher] tick: ${raws.length} raw`);
+  const raws = await this.appRepo.getRawActivities(100);
+  if (raws.length) console.log(`[Enricher] tick: ${raws.length} raw`);
 
-    for (const r of raws) {
-      try {
-        let category: ActivityCategory =
-          (this.appRepo.getCachedCategory(r.windowTitle, r.domain) as ActivityCategory)??
-          classifyActivityCategory(r.windowTitle, r.domain?? null);
+  for (const r of raws) {
+    try {
+      const title = (r as any).title?? (r as any).windowTitle?? '';
+        const domain = (r.domain?? undefined) as string | undefined;
 
-        if (r.domain && isVideoLikeHost(r.domain)) {
-          const deps = {
-            llm: this.llm,
-            getCached: async (title: string, domain?: string) =>
-              this.appRepo.getCachedCategory(title, domain),
-            putCached: async (title: string, domain: string | undefined, cat: VideoCategory) =>
-              this.appRepo.cacheCategory(title, domain, cat),
-          };
-          const videoCat = await classifyVideoCategory(deps, r.windowTitle, r.domain);
-          category = mergeCoarseWithVideo(category, videoCat);
-        }
+      let category: ActivityCategory =
+        (this.appRepo.getCachedCategory(title, domain) as ActivityCategory)??
+        classifyActivityCategory(title, domain?? null);
 
-        await this.appRepo.updateActivityCategory(r.id, category);
-        this.appRepo.cacheCategory(r.windowTitle, r.domain, category);
-      } catch (err) {
-        console.error('[Enricher] failed on id', r.id, err); 
+      if (domain && isVideoLikeHost(domain)) {
+        const deps = {
+          llm: this.llm,
+          getCached: async (t: string, d?: string) =>
+            this.appRepo.getCachedCategory(t, d),
+          putCached: async (t: string, d: string | undefined, cat: VideoCategory) =>
+            this.appRepo.cacheCategory(t, d, cat),
+        };
+        const videoCat = await classifyVideoCategory(deps, title, domain);
+        category = mergeCoarseWithVideo(category, videoCat);
       }
+
+      // 1) mark activity as processed (always)
+      await this.appRepo.updateActivityCategory(r.id, category);
+
+      // 2) cache the title → category mapping (only if title exists)
+      if (title && title.trim()) {
+        await this.appRepo.cacheCategory(title, domain, category);
+      }
+
+    } catch (err) {
+      console.error('[Enricher] failed on id', r.id, err);
     }
   }
+}
 }

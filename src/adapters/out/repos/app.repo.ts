@@ -77,14 +77,22 @@ export class AppRepo implements IAppRepo {
   insertMany(activities);
 }
 
-    cacheCategory(title: string, domain: string | undefined, category: string): void {
+    cacheCategory(title: string | null | undefined, domain: string | undefined, category: string): void {
+  
+    const cleanTitle = (title || '').trim();
+    if (!cleanTitle) {
+      return;
+    }
+
+      const cleanDomain = (domain ?? '').trim() || undefined; 
+    
     this.db.prepare(this._sql.upsertTitleClassification).run([
-      this.titleHash(title, domain),
-      title,
-      domain ?? null,
+      this.titleHash(cleanTitle, cleanDomain),
+      cleanTitle,
+      cleanDomain ?? null, 
       category,
       Date.now(),
-    ])
+    ]);
   }
 
   getVideoConsumptionMs(fromMs: number, toMs: number): number {

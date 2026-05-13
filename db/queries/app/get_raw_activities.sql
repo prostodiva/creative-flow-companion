@@ -1,12 +1,13 @@
 SELECT 
-  id,
-  ts,
-  app AS appName,
-  title AS windowTitle,
+  id, 
+  ts, 
+  app, 
+  title, 
   domain,
-  category,
-  duration_ms AS durationMs
+  NULL as url,
+  has_audio as audible,
+  is_fullscreen as fullscreen
 FROM app_activity
-WHERE category = 'raw' OR category IS NULL
+WHERE category = 'raw' OR category IS NULL OR category = ''
 ORDER BY ts ASC
-LIMIT ?;
+LIMIT ?
