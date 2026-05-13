@@ -7,4 +7,5 @@ need to know about WebSockets, OS notifications.
 3. move Severity to models. Pure type - no logic, no dependencies
 4. Ollama is instantiated every call. Inject an LLM interface; add OllamaClient to use in main. It acts as an adapter between the application and the external LLM library (LangChain Ollama).
 5. inject InterventionState into OrchestratorDeps and delete the module-level variable. replace it with a stateful service (InterventionState).
-6. buildPrompt queries the repo directly. buildPrompt's job is to assemble a string. The data fetch belongs in checkTelemetry where all other data fetching happens. This is a separation of concerns violation — mixing data collection with presentation logic. refactor: 
+6. buildPrompt queries the repo directly. buildPrompt's job is to assemble a string. The data fetch belongs in checkTelemetry where all other data fetching happens. This is a separation of concerns violation — mixing data collection with presentation logic. refactor: extract repo quering from builderPrompt to checkTemeletry
+7. shouldIntervene is hidden business logic. refactor: move into InterventionPolicy (reusible, testable, business logic)

@@ -15,6 +15,7 @@ import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
 import { ActivityEnricher } from "./domain/use-cases/activityEnricher.js";
 import { InterventionState } from "./domain/use-cases/InterventionState.js";
 import { config } from "./infrastructure/config.js";
+import { InterventionPolicy } from "./policy/InterventionPolicy.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 
@@ -47,11 +48,12 @@ const interventionState = new InterventionState(
   config.INTERVENTION_COOLDOWN_MS
 
 );
+const interventionPolicy = new InterventionPolicy(interventionState);
 
 appSensor.start();
 enricher.start();
 
-startOrchestrationLoop({ ideRepo, appRepo, interventionService, llm, interventionState });
+startOrchestrationLoop({ ideRepo, appRepo, interventionService, llm, interventionState, interventionPolicy });
 startSessionLogger(ideRepo, appRepo);
 
 logger.info("Flow Agent Telemetry v2 ready");

@@ -1,7 +1,6 @@
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { TState, StateAnnotation } from "../models/orchestrationState.js"
 import cron from "node-cron";
-import { config } from "../../infrastructure/config.js";
 import { logger } from "../../infrastructure/logger.js";
 import { IAppRepo } from "../ports/out/IAppRepo.js";
 import { IIdeRepo } from "../ports/out/IIdeRepo.js";
@@ -9,16 +8,18 @@ import { IInterventionService  } from "../../domain/ports/out/IInterventionServi
 import { retrieveMemory } from "./memoryRetriever.js";
 import { ILlmClient } from "../ports/out/ILlmClient.js";
 import { InterventionState } from "./InterventionState.js";
+import { InterventionPolicy } from "../../policy/InterventionPolicy.js";
 interface OrchestratorDeps {
   appRepo: IAppRepo;
   ideRepo: IIdeRepo;
   interventionService: IInterventionService;
   llm: ILlmClient;
   interventionState: InterventionState;
+  interventionPolicy: InterventionPolicy
 }
 
 function createNodes(deps: OrchestratorDeps) {
-  const { appRepo, ideRepo, interventionService, llm, interventionState } = deps;
+  const { appRepo, ideRepo, interventionService, llm, interventionState, interventionPolicy } = deps;
 
   async function checkTelemetry(state: TState): Promise<Partial<TState>> {
     const now = Date.now();
@@ -47,17 +48,18 @@ function createNodes(deps: OrchestratorDeps) {
 
     const keystrokesLast5Min = keystrokes ?? 0;
 
-    const shouldIntervene =
-      lastCommitMinutes > config.COMMIT_IDLE_MINUTES ||
-      chromeTabCount >= config.TAB_OVERLOAD_THRESHOLD ||
-      keystrokesLast5Min === 0;
+    const shouldIntervene = interventionPolicy.shouldIntervene({
+      lastCommitMinutes: state.lastCommitMinutes,
+      chromeTabCount: state.chromeTabCount,
+      keystrokesLast5Min: state.keystrokesLast5Min,
+    });
 
     logger.info(
       {
         chromeTabCount,
         lastCommitMinutes,
         keystrokesLast5Min,
-        shouldIntervene,
+        activeApp,
       },
       "Telemetry check",
     );
@@ -128,11 +130,18 @@ function createNodes(deps: OrchestratorDeps) {
     if (!state.interventionPrompt) return {};
     if (!interventionState.canFire()) return {};
 
-    const response = await llm.invoke(state.interventionPrompt);
+    let response: string;
+    try {
+      response = await llm.invoke(state.interventionPrompt);
+    } catch (e) {
+      logger.error({ e }, "LLM failed");
+      return {};
+    }
+
     if (!response?.trim()) return {};
 
     logger.warn({ response }, "FLOW INTERVENTION FIRED");
-    
+
     interventionService.fire("trigger", "high", response);
     interventionState.markFired();
     return {};

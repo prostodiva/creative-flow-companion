@@ -16,7 +16,7 @@ Everything keeps collecting data forever and nothing ever acts on it. Sensors wr
 runtime role:
     every 30 sec cron work:
     - reads SQLite via IAppRepo + IIdeRepo
-    - has an ai-agent memory; has ai pipeline(the workflow what it needs to do)
+    - queries memory systems(SQLite - activity history, ChromaDB- semantic memory); has ai pipeline(the workflow what it needs to do)
     - build prompt for LLM
     - retrieve memory from Chromadb(past sessions)
     - analyzing the pattern
@@ -35,13 +35,15 @@ tracing:
 details only where they clarify boundaries:
 
 3. Patterns explicitly map:
-Orchestration Loop - cron.schedule + orchestrator.invoke() - Heartbeat that drives everything
-State Machine - StateGraph + StateAnnotation - LangGraph tracks state between nodes
-Pipeline - check->retrieveMemory->prompt->intervene - Each node transforms state
-Dependency Injection - OrchestratorDeps passed to createModes - Repos injected, not imported directly
-Ports - IAppRepo, IIdeRepo - interfaces
-Background job - cronJob module-level variable - Runs independently of request cycle
-Conditional routing - addConditionalEdges - pipeline short-curcuits if no intervention needed
+- Orchestration Loop - cron.schedule + orchestrator.invoke() - Heartbeat that drives everything
+- State Machine - StateGraph + StateAnnotation - LangGraph(ephemeral execution state) tracks state between nodes. transient execution state for decision making
+- Pipeline - check->retrieveMemory->prompt->intervene - Each node transforms state
+- Dependency Injection - OrchestratorDeps passed to createModes - Repos injected, not imported directly
+- Ports - IAppRepo, IIdeRepo, IInterventionService, ILlmClient - interfaces
+- Background job - cronJob module-level variable - Runs independently of request cycle
+- Conditional routing - addConditionalEdges - pipeline short-curcuits if no intervention needed
+- Temporal batch decision system - a periodic inference engine over developer behavior signals
+- Closed-loop feedback system: observe → analyze → intervene → modify future behavior(interventions affect future telemetry.)
 
 
 4. Tradeoffs:
