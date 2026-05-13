@@ -3,20 +3,8 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer, type WebSocket } from "ws";
 import { logger } from "../../infrastructure/logger.js";
 import { interventionsFired } from "../../infrastructure/metrics.js";
-
-// ---- Types -----------------------------------------------------------------
-
-export type Severity = "low" | "med" | "high";
-
-export interface Intervention {
-  id: string;
-  rule: string;
-  severity: Severity;
-  message: string;
-  ts: number;
-}
-
-// ---- Service ---------------------------------------------------------------
+import { Severity } from "../models/Severity.js";
+import { IIntervention } from "../ports/out/IInterventionService.js";
 
 export class InterventionService {
   private _wss: WebSocketServer | null = null;
@@ -68,8 +56,8 @@ export class InterventionService {
     });
   }
 
-  fire(rule: string, severity: Severity, message: string): Intervention {
-    const intervention: Intervention = {
+  fire(rule: string, severity: Severity, message: string): IIntervention {
+    const intervention: IIntervention = {
       id: randomUUID(),
       rule,
       severity,

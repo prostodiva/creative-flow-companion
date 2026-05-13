@@ -3,7 +3,7 @@ import "dotenv/config";
 import { existsSync, unlinkSync } from "fs";
 import os from "node:os";
 import path from "node:path";
-import { Ollama } from "@langchain/ollama"; 
+import { OllamaClient } from "./adapters/out/OllamaClient.js";
 import { AppActivitySensor } from './adapters/in/sensors/app-activity.sensor.js';
 import { AppRepo } from './adapters/out/repos/app.repo.js';
 import { IdeRepo } from './adapters/out/repos/ide.repo.js';
@@ -35,19 +35,15 @@ runMigrations(db);
 const appRepo = new AppRepo(db);
 const ideRepo = new IdeRepo(db);
 const interventionService = new InterventionService();
-
-const ollama = new Ollama({
-  model: process.env.OLLAMA_MODEL ?? "llama3.1",
-  baseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
-});
+const llm = new OllamaClient();
 
 const appSensor = new AppActivitySensor(appRepo);
-const enricher = new ActivityEnricher(appRepo, ollama);
+const enricher = new ActivityEnricher(appRepo, llm);
 
 appSensor.start();
 enricher.start();
 
-startOrchestrationLoop({ ideRepo, appRepo, interventionService });
+startOrchestrationLoop({ ideRepo, appRepo, interventionService, llm });
 startSessionLogger(ideRepo, appRepo);
 
 logger.info("Flow Agent Telemetry v2 ready");

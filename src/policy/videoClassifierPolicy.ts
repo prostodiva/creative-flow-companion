@@ -1,11 +1,11 @@
 // async work vs entertainment (keywords + LLM)
-import type { Ollama } from "@langchain/ollama";
 import { WORK_HOSTS } from "./mediaDomains.js";
+import { OllamaClient } from "../adapters/out/OllamaClient.js";
 
 export type VideoCategory = "work" | "entertainment";
 
 export type VideoClassifierDeps = {
-  llm: Ollama;
+  llm: OllamaClient;
   getCached: (title: string, domain?: string) => Promise<string | null>;
   putCached: (
     title: string,

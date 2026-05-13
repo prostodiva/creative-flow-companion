@@ -3,7 +3,7 @@ import { IAppRepo } from "../ports/out/IAppRepo.js";
 import { classifyActivityCategory, type ActivityCategory } from "../../policy/activityCategoryPolicy.js";
 import { classifyVideoCategory, type VideoCategory } from "../../policy/videoClassifierPolicy.js";
 import { isVideoLikeHost } from "../../policy/mediaSignals.js";
-import type { Ollama } from "@langchain/ollama";
+import { OllamaClient } from "../../adapters/out/OllamaClient.js";
 
 function mergeCoarseWithVideo(coarse: ActivityCategory, video: VideoCategory): ActivityCategory {
   return video;
@@ -12,7 +12,7 @@ function mergeCoarseWithVideo(coarse: ActivityCategory, video: VideoCategory): A
 export class ActivityEnricher {
   private timer: NodeJS.Timeout | null = null;
 
-  constructor(private appRepo: IAppRepo, private llm: Ollama) {
+  constructor(private appRepo: IAppRepo, private llm: OllamaClient) {
     console.log('[Enricher] constructed — auto-starting');
     this.start(); 
   }

@@ -1,43 +1,25 @@
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
-import { Ollama } from "@langchain/ollama";
+import { END, START, StateGraph } from "@langchain/langgraph";
+import { TState, StateAnnotation } from "../models/orchestrationState.js"
 import cron from "node-cron";
 import { config } from "../../infrastructure/config.js";
 import { logger } from "../../infrastructure/logger.js";
 import { IAppRepo } from "../ports/out/IAppRepo.js";
 import { IIdeRepo } from "../ports/out/IIdeRepo.js";
-import type { InterventionService } from "./intervention.service.js";
+import { IInterventionService  } from "../../domain/ports/out/IInterventionService.js";
 import { retrieveMemory } from "./memoryRetriever.js";
-
+import { ILlmClient } from "../ports/out/ILlmClient.js";
 interface OrchestratorDeps {
   appRepo: IAppRepo;
   ideRepo: IIdeRepo;
-  interventionService: InterventionService;
+  interventionService: IInterventionService;
+  llm: ILlmClient;
 }
-
-const StateAnnotation = Annotation.Root({
-  chromeTabCount: Annotation<number>(),
-  lastCommitMinutes: Annotation<number>(),
-  keystrokesLast5Min: Annotation<number>(),
-  activeApp: Annotation<string>(),
-
-  entertainmentVideoMs: Annotation<number>(),
-  workVideoMs: Annotation<number>(),
-
-  shouldIntervene: Annotation<boolean>(),
-  interventionPrompt: Annotation<string | undefined>(),
-  recentFiles: Annotation<string[]>(),
-  gitDiffSummary: Annotation<string>(),
-  todoList: Annotation<string[]>(),
-  retrievedHistory: Annotation<string[]>(),
-});
-
-type TState = typeof StateAnnotation.State;
 
 let lastInterventionTs = 0;
 const COOLDOWN_MS = config.INTERVENTION_COOLDOWN_MS;
 
 function createNodes(deps: OrchestratorDeps) {
-  const { appRepo, ideRepo, interventionService } = deps;
+  const { appRepo, ideRepo, interventionService, llm } = deps;
 
   async function checkTelemetry(state: TState): Promise<Partial<TState>> {
     const now = Date.now();
@@ -151,17 +133,9 @@ Output:
   async function callLlama(state: TState): Promise<Partial<TState>> {
     
     if (!state.interventionPrompt) return {};
-    
     const now = Date.now();
     if (now - lastInterventionTs < COOLDOWN_MS) return {};
 
-    const llm = new Ollama({
-      baseUrl: config.OLLAMA_BASE_URL,
-      model: config.OLLAMA_MODEL,
-      temperature: 0.9,
-    });
-
-    
     const response = await llm.invoke(state.interventionPrompt);
     
     if (!response?.trim()) return {};
