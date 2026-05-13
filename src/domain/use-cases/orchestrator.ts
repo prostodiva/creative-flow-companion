@@ -23,6 +23,11 @@ function createNodes(deps: OrchestratorDeps) {
   async function checkTelemetry(state: TState): Promise<Partial<TState>> {
     const now = Date.now();
     const fiveMinAgo = now - 5 * 60 * 1000;
+    const oneHourAgo = now - 60 * 60 * 1000;
+
+    const entertainmentVideoMs = appRepo.getVideoConsumptionTotalByCategory(
+      oneHourAgo, now, 'entertainment'
+    )
 
     const chromeTabCount = appRepo.getChromeTabCount(now - 60000) ?? 0;
     const activeApp = appRepo.getCurrentApp() ?? "Unknown";
@@ -42,10 +47,9 @@ function createNodes(deps: OrchestratorDeps) {
 
     const keystrokesLast5Min = keystrokes ?? 0;
 
-    //fired only when tabs are opened now
     const shouldIntervene =
-      lastCommitMinutes > config.COMMIT_IDLE_MINUTES &&
-      chromeTabCount >= config.TAB_OVERLOAD_THRESHOLD &&
+      lastCommitMinutes > config.COMMIT_IDLE_MINUTES ||
+      chromeTabCount >= config.TAB_OVERLOAD_THRESHOLD ||
       keystrokesLast5Min === 0;
 
     logger.info(
@@ -68,6 +72,7 @@ function createNodes(deps: OrchestratorDeps) {
       gitDiffSummary: gitDiffSummary ?? "No changes",
       todoList: todoList ?? [],
       retrievedHistory: [],
+      entertainmentVideoMs
     };
   }
 
@@ -83,17 +88,7 @@ function createNodes(deps: OrchestratorDeps) {
 }
 
   async function buildPrompt(state: TState): Promise<Partial<TState>> {
-    const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000;
-
-    const entertainmentVideoMs =
-      appRepo.getVideoConsumptionTotalByCategory(
-        oneHourAgo,
-        now,
-        "entertainment"
-      );
-
-    const entMin = Math.floor(entertainmentVideoMs / 60000);
+    const entMin = Math.floor(state.entertainmentVideoMs / 60000);
 
     const behavioralContext =
       entMin >= 1
@@ -130,21 +125,16 @@ function createNodes(deps: OrchestratorDeps) {
   }
 
   async function callLlama(state: TState): Promise<Partial<TState>> {
-    
     if (!state.interventionPrompt) return {};
-
     if (!interventionState.canFire()) return {};
 
     const response = await llm.invoke(state.interventionPrompt);
-
     if (!response?.trim()) return {};
 
     logger.warn({ response }, "FLOW INTERVENTION FIRED");
-
-    interventionService.fire("trigger", "high", response);
     
+    interventionService.fire("trigger", "high", response);
     interventionState.markFired();
-
     return {};
   }
 
