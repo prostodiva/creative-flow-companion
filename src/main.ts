@@ -13,6 +13,8 @@ import { runMigrations } from "./infrastructure/db/migrate.js";
 import { logger } from "./infrastructure/logger.js";
 import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
 import { ActivityEnricher } from "./domain/use-cases/activityEnricher.js";
+import { InterventionState } from "./domain/use-cases/InterventionState.js";
+import { config } from "./infrastructure/config.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 
@@ -40,10 +42,16 @@ const llm = new OllamaClient();
 const appSensor = new AppActivitySensor(appRepo);
 const enricher = new ActivityEnricher(appRepo, llm);
 
+const interventionState = new InterventionState(
+
+  config.INTERVENTION_COOLDOWN_MS
+
+);
+
 appSensor.start();
 enricher.start();
 
-startOrchestrationLoop({ ideRepo, appRepo, interventionService, llm });
+startOrchestrationLoop({ ideRepo, appRepo, interventionService, llm, interventionState });
 startSessionLogger(ideRepo, appRepo);
 
 logger.info("Flow Agent Telemetry v2 ready");

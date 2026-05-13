@@ -8,18 +8,17 @@ import { IIdeRepo } from "../ports/out/IIdeRepo.js";
 import { IInterventionService  } from "../../domain/ports/out/IInterventionService.js";
 import { retrieveMemory } from "./memoryRetriever.js";
 import { ILlmClient } from "../ports/out/ILlmClient.js";
+import { InterventionState } from "./InterventionState.js";
 interface OrchestratorDeps {
   appRepo: IAppRepo;
   ideRepo: IIdeRepo;
   interventionService: IInterventionService;
   llm: ILlmClient;
+  interventionState: InterventionState;
 }
 
-let lastInterventionTs = 0;
-const COOLDOWN_MS = config.INTERVENTION_COOLDOWN_MS;
-
 function createNodes(deps: OrchestratorDeps) {
-  const { appRepo, ideRepo, interventionService, llm } = deps;
+  const { appRepo, ideRepo, interventionService, llm, interventionState } = deps;
 
   async function checkTelemetry(state: TState): Promise<Partial<TState>> {
     const now = Date.now();
@@ -108,24 +107,24 @@ function createNodes(deps: OrchestratorDeps) {
 
     const SYSTEM_PROMPT = `You are a senior Meta tech lead mentoring a staff engineer.
 
-CURRENT BEHAVIOR:
-${behavioralContext}
+      CURRENT BEHAVIOR:
+      ${behavioralContext}
 
-Active app: ${state.activeApp}
-Recent files: ${state.recentFiles.join(", ") || "None"}
-Git status: ${state.gitDiffSummary}
-TODOs: ${state.todoList.slice(0, 2).join(" | ") || "None"}
+      Active app: ${state.activeApp}
+      Recent files: ${state.recentFiles.join(", ") || "None"}
+      Git status: ${state.gitDiffSummary}
+      TODOs: ${state.todoList.slice(0, 2).join(" | ") || "None"}
 
-PAST PATTERNS:
-${historyBlock}
+      PAST PATTERNS:
+      ${historyBlock}
 
-RULES:
-- Max 30 words
-- Be direct and technical
-- No fluff
+      RULES:
+      - Max 30 words
+      - Be direct and technical
+      - No fluff
 
-Output:
-[Empathy]. [Diagnosis]: 15min sprint - [action]`;
+      Output:
+      [Empathy]. [Diagnosis]: 15min sprint - [action]`;
 
     return { interventionPrompt: SYSTEM_PROMPT };
   }
@@ -133,18 +132,18 @@ Output:
   async function callLlama(state: TState): Promise<Partial<TState>> {
     
     if (!state.interventionPrompt) return {};
-    const now = Date.now();
-    if (now - lastInterventionTs < COOLDOWN_MS) return {};
+
+    if (!interventionState.canFire()) return {};
 
     const response = await llm.invoke(state.interventionPrompt);
-    
+
     if (!response?.trim()) return {};
 
     logger.warn({ response }, "FLOW INTERVENTION FIRED");
 
     interventionService.fire("trigger", "high", response);
-
-    lastInterventionTs = now;
+    
+    interventionState.markFired();
 
     return {};
   }
