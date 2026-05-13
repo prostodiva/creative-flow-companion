@@ -1,3 +1,7 @@
+/**
+ * The orchestrator coordinates all the other systems without doing the work itself.
+ */
+
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { TState, StateAnnotation } from "../models/orchestrationState.js"
 import cron from "node-cron";

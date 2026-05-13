@@ -47,15 +47,112 @@ details only where they clarify boundaries:
 
 
 4. Tradeoffs:
-Coupling:
+   
+    The orchestrator is intentionally coupled to:
+
+    * domain ports (IAppRepo, IIdeRepo, ILlmClient, IInterventionService)
+    * LangGraph state transitions
+    * intervention workflow order
+
+    But it is decoupled from:
+
+    * SQLite implementation details
+    * Ollama/LangChain internals
+    * WebSocket or OS notification APIs
+    * ChromaDB implementation
+
+    Tradeoff:
+
+    * Strong coordination coupling is acceptable because orchestration layers naturally know system flow.
+    * Business rules were extracted into InterventionPolicy to reduce logic coupling.
 
 Scalability:
+    Current design scales well for:
 
-Failure modes where they matter:
+    * adding more telemetry signals
+    * adding new workflow nodes
+    * swapping LLM providers
+    * replacing storage implementations
+    * introducing multiple intervention policies
+
+    Potential bottlenecks:
+
+    * LLM invocation latency
+    * synchronous SQLite reads
+    * single-process cron execution
+    * growing prompt size from memory retrieval
+
+    Future scaling options:
+
+    * queue-based orchestration
+    * distributed workers
+    * async event bus
+    * streaming telemetry aggregation
+    * rule scoring engine instead of threshold checks
+    Failure modes where they matter:
+
+    Failure modes where they matter:
+
+    LLM unavailable
+    Impact:
+        * interventions stop generating
+        * telemetry collection still works
+    Mitigation:
+        * isolated try/catch around llm.invoke()
+
+    ⸻
+
+    SQLite corruption
+    Impact:
+        * telemetry history unavailable
+        * intervention quality degrades
+    Mitigation:
+        * startup corruption detection + DB recreation
+
+    ⸻
+
+    ChromaDB/memory retrieval failure
+    Impact:
+        * interventions lose historical context
+        * system still functions with live telemetry
+    Mitigation:
+        * orchestration pipeline can continue without memory results
+
+    ⸻
+
+    Cooldown logic failure
+    Impact:
+        * intervention spam
+        * developer fatigue
+        * reduced trust in system
+    Mitigation:
+        * centralized InterventionState
+
+    Cron loop crash
+    Impact:
+        * orchestration stops entirely
+        * system becomes passive telemetry logger
+    Mitigation:
+        * outer orchestration try/catch + isolated node failures
+
 
 5. Reasoning about ownership:
 
-owns:
+    The orchestrator owns:
+    * workflow order
+    * state transitions
+    * node coordination
+    * intervention decision flow
+    * execution timing (30-second heartbeat)
+    * passing context between systems
+
+overall:
+    * modular
+    * testable
+    * dependency-inverted
+    * state-driven
+    * policy-oriented
+    * infrastructure-isolated
 
 
 
