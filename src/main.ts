@@ -3,19 +3,19 @@ import "dotenv/config";
 import { existsSync, unlinkSync } from "fs";
 import os from "node:os";
 import path from "node:path";
-import { OllamaClient } from "./adapters/out/OllamaClient.js";
 import { AppActivitySensor } from './adapters/in/sensors/app-activity.sensor.js';
+import { OllamaClient } from "./adapters/out/OllamaClient.js";
 import { AppRepo } from './adapters/out/repos/app.repo.js';
 import { IdeRepo } from './adapters/out/repos/ide.repo.js';
+import { InterventionPolicy } from "./domain/models/InterventionPolicy.js";
+import { InterventionState } from "./domain/models/InterventionState.js";
+import { ActivityEnricher } from "./domain/use-cases/activityEnricher.js";
 import { InterventionService } from './domain/use-cases/intervention.service.js';
+import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
 import { startSessionLogger } from "./domain/use-cases/sessionLogger.js";
+import { config } from "./infrastructure/config.js";
 import { runMigrations } from "./infrastructure/db/migrate.js";
 import { logger } from "./infrastructure/logger.js";
-import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
-import { ActivityEnricher } from "./domain/use-cases/activityEnricher.js";
-import { InterventionState } from "./domain/use-cases/InterventionState.js";
-import { config } from "./infrastructure/config.js";
-import { InterventionPolicy } from "./policy/InterventionPolicy.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 

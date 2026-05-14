@@ -1,6 +1,6 @@
-import { config } from "../infrastructure/config.js";
-import { InterventionState } from "../domain/use-cases/InterventionState.js";
-import { InterventionSignals } from "../domain/ports/out/InternventionSignals.js";
+import { config } from "../../infrastructure/config.js";
+import { InterventionSignals } from "../ports/out/InternventionSignals.js";
+import { InterventionState } from "./InterventionState.js";
 
 export class InterventionPolicy {
   constructor(private readonly state: InterventionState) {}

@@ -3,16 +3,16 @@
  */
 
 import { END, START, StateGraph } from "@langchain/langgraph";
-import { TState, StateAnnotation } from "../models/orchestrationState.js"
 import cron from "node-cron";
 import { logger } from "../../infrastructure/logger.js";
+import { InterventionPolicy } from "../models/InterventionPolicy.js";
+import { InterventionState } from "../models/InterventionState.js";
+import { StateAnnotation, TState } from "../models/orchestrationState.js";
 import { IAppRepo } from "../ports/out/IAppRepo.js";
 import { IIdeRepo } from "../ports/out/IIdeRepo.js";
-import { IInterventionService  } from "../../domain/ports/out/IInterventionService.js";
-import { retrieveMemory } from "./memoryRetriever.js";
+import { IInterventionService } from "../ports/out/IInterventionService.js";
 import { ILlmClient } from "../ports/out/ILlmClient.js";
-import { InterventionState } from "./InterventionState.js";
-import { InterventionPolicy } from "../../policy/InterventionPolicy.js";
+import { retrieveMemory } from "./memoryRetriever.js";
 interface OrchestratorDeps {
   appRepo: IAppRepo;
   ideRepo: IIdeRepo;
@@ -46,16 +46,13 @@ function createNodes(deps: OrchestratorDeps) {
         ideRepo.getTodoComments(),
       ]);
 
-    const lastCommitMinutes = lastCommit
-      ? Math.floor((now - lastCommit) / 60000)
-      : 999;
-
+    const lastCommitMinutes = lastCommit ? Math.floor((now - lastCommit) / 60000): 999;
     const keystrokesLast5Min = keystrokes ?? 0;
 
     const shouldIntervene = interventionPolicy.shouldIntervene({
-      lastCommitMinutes: state.lastCommitMinutes,
-      chromeTabCount: state.chromeTabCount,
-      keystrokesLast5Min: state.keystrokesLast5Min,
+      lastCommitMinutes,
+      chromeTabCount,
+      keystrokesLast5Min
     });
 
     logger.info(

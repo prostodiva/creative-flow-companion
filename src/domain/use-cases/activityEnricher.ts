@@ -1,8 +1,8 @@
 // src/domain/use-cases/activityEnricher.ts
 import { IAppRepo } from "../ports/out/IAppRepo.js";
-import { classifyActivityCategory, type ActivityCategory } from "../../policy/activityCategoryPolicy.js";
-import { classifyVideoCategory, type VideoCategory } from "../../policy/videoClassifierPolicy.js";
-import { isVideoLikeHost } from "../../policy/mediaSignals.js";
+import { classifyActivityCategory, type ActivityCategory } from "../models/activityCategoryPolicy.js";
+import { classifyVideoCategory, type VideoCategory } from "../models/videoClassifierPolicy.js";
+import { isVideoLikeHost } from "../models/mediaSignals.js";
 import { OllamaClient } from "../../adapters/out/OllamaClient.js";
 
 function mergeCoarseWithVideo(coarse: ActivityCategory, video: VideoCategory): ActivityCategory {
