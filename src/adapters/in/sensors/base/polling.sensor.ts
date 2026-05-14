@@ -1,12 +1,14 @@
 import { logger } from "../../../../infrastructure/logger.js";
-import { sensorErrorsTotal, sensorTicksTotal } from "../../../../infrastructure/metrics.js";
+import {
+  sensorErrorsTotal,
+  sensorTicksTotal,
+} from "../../../../infrastructure/metrics.js";
 import { Sensor, type SensorHealth } from "./sensor.js";
 
 // ---- Configuration ---------------------------------------------------------
 
 const DEFAULT_BATCH_SIZE = 10;
 const DEFAULT_FLUSH_INTERVAL_MS = 5_000;
-
 
 export abstract class PollingSensor<T> extends Sensor {
   protected _batch: T[] = [];
@@ -17,7 +19,6 @@ export abstract class PollingSensor<T> extends Sensor {
   private _pollTimer: NodeJS.Timeout | null = null;
   private _flushTimer: NodeJS.Timeout | null = null;
 
-  
   protected get intervalMs(): number {
     return Number(process.env.POLL_INTERVAL_MS) || 2000;
   }
@@ -30,16 +31,12 @@ export abstract class PollingSensor<T> extends Sensor {
     return DEFAULT_FLUSH_INTERVAL_MS;
   }
 
-
   protected abstract poll(): Promise<T | null>;
-
 
   protected abstract flush(batch: T[]): Promise<void>;
 
-
-
   start(): void {
-    if (this._pollTimer) return; 
+    if (this._pollTimer) return;
     logger.info(
       { sensor: this.name, intervalMs: this.intervalMs },
       "Sensor started",
@@ -82,7 +79,6 @@ export abstract class PollingSensor<T> extends Sensor {
     };
   }
 
-
   private async _tick(): Promise<void> {
     try {
       const data = await this.poll();
@@ -117,7 +113,6 @@ export abstract class PollingSensor<T> extends Sensor {
       this._batch.unshift(...toFlush);
     }
   }
-
 
   get batchSnapshot(): readonly T[] {
     return this._batch;

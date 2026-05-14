@@ -20,7 +20,6 @@ runtime role:
     - build prompt for LLM
     - retrieve memory from Chromadb(past sessions)
     - analyzing the pattern
-    - retrieve the result from chromadb
     - call LLaMMa LLM, sent a prompt;
 
 

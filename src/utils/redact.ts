@@ -20,7 +20,7 @@ export function redact(input: string): string {
     .map((p) => p.trim())
     .filter(Boolean);
 
-  let out = input.slice(0, MAX_LEN * 4); 
+  let out = input.slice(0, MAX_LEN * 4);
 
   for (const pattern of patterns) {
     out = out.replace(pattern, "[REDACTED]");
@@ -36,7 +36,6 @@ export function redact(input: string): string {
 
   return out.slice(0, MAX_LEN);
 }
-
 
 export function sanitizeForLLM(input: string): string {
   return input

@@ -69,7 +69,7 @@ export type RetrieveInput = {
   activeApp: string;
   recentFiles: string[];
   commitCount: number;
-  entertainmentVideoMs: number; 
+  entertainmentVideoMs: number;
 };
 
 export async function retrieveMemory(input: RetrieveInput): Promise<string[]> {
@@ -108,7 +108,7 @@ export async function retrieveMemory(input: RetrieveInput): Promise<string[]> {
   const results = await collection.query({
     queryEmbeddings: [vector],
     nResults: TOP_K,
-    where: { ts: { $gte: sevenDaysAgoMs() } }, 
+    where: { ts: { $gte: sevenDaysAgoMs() } },
     include: ["documents", "metadatas", "distances"] as any,
   });
 

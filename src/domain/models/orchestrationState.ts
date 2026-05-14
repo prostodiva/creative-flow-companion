@@ -2,7 +2,7 @@
  * used by orchestrator.ts
  * creates a typed shared state object schema using an annotation system for LangGraph
  * to track active coding, distraction, inactivity
- * 
+ *
  * StateAnnotation - passed to LangGraph
  * TState is used to type every node function — what goes in, what comes out
  * passed the full state, returns only what it changed

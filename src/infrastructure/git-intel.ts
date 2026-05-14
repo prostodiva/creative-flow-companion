@@ -45,14 +45,12 @@ export async function getTodoComments(cwd = process.cwd()): Promise<string[]> {
       .filter(Boolean)
       .slice(0, 3)
       .map((l) => {
-       
         const parts = l.split(":");
         if (parts.length <= 2) return parts.slice(1).join(":").trim();
         return parts.slice(2).join(":").trim();
       })
       .filter(Boolean);
   } catch {
-   
     return [];
   }
 }

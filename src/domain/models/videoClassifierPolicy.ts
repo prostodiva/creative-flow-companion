@@ -1,6 +1,6 @@
 // async work vs entertainment (keywords + LLM)
 import { WORK_HOSTS } from "./mediaDomains.js";
-import { OllamaClient } from "../adapters/out/OllamaClient.js";
+import { OllamaClient } from "../../adapters/out/OllamaClient.js";
 
 export type VideoCategory = "work" | "entertainment";
 

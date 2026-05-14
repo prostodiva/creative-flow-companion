@@ -4,8 +4,8 @@ export interface AppActivity {
   appName: string;
   windowTitle: string;
   domain?: string;
-  isFullscreen?: number;  
-  hasAudio?: number;     
+  isFullscreen?: number;
+  hasAudio?: number;
   category: string;
   durationMs: number;
   chromeTabCount?: number;

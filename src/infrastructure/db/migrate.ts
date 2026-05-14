@@ -33,7 +33,7 @@ function splitUpDown(sql: string): { up: string; down: string } {
 }
 
 function migrationsDirCandidates(): string[] {
-  const here = dirname(fileURLToPath(import.meta.url)); 
+  const here = dirname(fileURLToPath(import.meta.url));
   const projectRoot = resolve(here, "..", "..");
   return [
     resolve(projectRoot, "dist", "db", "migrations"),
@@ -49,8 +49,7 @@ function readMigrations(): Migration[] {
       readdirSync(d);
       dir = d;
       break;
-    } catch {
-    }
+    } catch {}
   }
   if (!dir) return [];
 

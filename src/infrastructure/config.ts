@@ -24,6 +24,8 @@ const ConfigSchema = z.object({
   COMMIT_IDLE_MINUTES: z.number().default(30),
   VIDEO_IDLE_MINUTES: z.number().default(30),
   CHROMA_URL: z.string().url().default("http://localhost:8000"),
+  SESSION_WINDOW_MS: z.number().default(30 * 60 * 1000),
+  SESSION_CRON_EXPR: z.string().default("0 */30 * * * *"),
 });
 
 export const config = ConfigSchema.parse({
@@ -36,4 +38,6 @@ export const config = ConfigSchema.parse({
   COMMIT_IDLE_MINUTES: Number(process.env.COMMIT_IDLE_MINUTES) || undefined,
   VIDEO_IDLE_MINUTES: Number(process.env.VIDEO_IDLE_MINUTES) || undefined,
   CHROMA_URL: process.env.CHROMA_URL ?? "http://localhost:8000",
+  SESSION_WINDOW_MS: Number(process.env.SESSION_WINDOW_MS) || undefined,
+  SESSION_CRON_EXPR: process.env.SESSION_CRON_EXPR,
 });

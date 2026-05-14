@@ -1,4 +1,3 @@
-
 export interface ILlmClient {
-  invoke(prompt: string): Promise<string>
+  invoke(prompt: string): Promise<string>;
 }

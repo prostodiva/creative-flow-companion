@@ -8,7 +8,6 @@ import { IpcServer } from "./ipc.js";
 
 const execFileAsync = promisify(execFile);
 
-
 interface IdeEvent {
   ts: number;
   ide: string;
@@ -18,7 +17,6 @@ interface IdeEvent {
   language: string;
   duration_ms: number;
 }
-
 
 export class IdeSensor extends PollingSensor<IdeEvent> {
   readonly name = "ide";
@@ -79,18 +77,18 @@ export class IdeSensor extends PollingSensor<IdeEvent> {
       const commitTs = parseInt(stdout.trim()) * 1000;
       if (commitTs > this._lastCommitTs) {
         this._lastCommitTs = commitTs;
-        this._repo.upsertLastCommit(commitTs); 
+        this._repo.upsertLastCommit(commitTs);
       }
     } catch (err) {
       logger.debug({ err }, "Git poll failed");
     }
 
-    return null; 
+    return null;
   }
 
   protected async flush(batch: IdeEvent[]): Promise<void> {
     if (batch.length === 0) return;
-    this._repo.insertMany(batch); 
+    this._repo.insertMany(batch);
     logger.debug(
       { sensor: this.name, count: batch.length },
       "Flushed IDE events",

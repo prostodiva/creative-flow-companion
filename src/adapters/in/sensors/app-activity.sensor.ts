@@ -85,8 +85,8 @@ export class AppActivitySensor extends Sensor {
       ts: this.last.ts,
       appName: this.last.app,
       windowTitle: this.last.title,
-      domain: this.last.domain ?? "", 
-      category: "raw", 
+      domain: this.last.domain ?? "",
+      category: "raw",
       durationMs,
     } as AppActivity;
 
@@ -163,16 +163,18 @@ export class AppActivitySensor extends Sensor {
       const { stdout } = await execFileAsync("osascript", ["-e", script]);
       const parts = stdout.trim().split("|||");
 
-      const app = parts[0]?? "unknown";
-      const title = parts[1]?? "";
-      const url = parts[2]?? "";
-      const fullStr = parts[3]?? "false";
-      const tabCountStr = parts[4]?? "0";
-      const audStr = parts[5]?? "false";
+      const app = parts[0] ?? "unknown";
+      const title = parts[1] ?? "";
+      const url = parts[2] ?? "";
+      const fullStr = parts[3] ?? "false";
+      const tabCountStr = parts[4] ?? "0";
+      const audStr = parts[5] ?? "false";
 
       let domain: string | null = null;
-      if (url && url!== "missing value") {
-        try { domain = new URL(url).hostname.replace("www.", ""); } catch {}
+      if (url && url !== "missing value") {
+        try {
+          domain = new URL(url).hostname.replace("www.", "");
+        } catch {}
       }
 
       return {
@@ -183,7 +185,7 @@ export class AppActivitySensor extends Sensor {
         audible: audStr === "true",
         chromeTabCount:
           app === "Google Chrome" && /^\d+$/.test(tabCountStr)
-          ? parseInt(tabCountStr, 10)
+            ? parseInt(tabCountStr, 10)
             : null,
       };
     } catch (err) {

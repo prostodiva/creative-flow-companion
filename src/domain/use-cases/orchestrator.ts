@@ -19,11 +19,18 @@ interface OrchestratorDeps {
   interventionService: IInterventionService;
   llm: ILlmClient;
   interventionState: InterventionState;
-  interventionPolicy: InterventionPolicy
+  interventionPolicy: InterventionPolicy;
 }
 
 function createNodes(deps: OrchestratorDeps) {
-  const { appRepo, ideRepo, interventionService, llm, interventionState, interventionPolicy } = deps;
+  const {
+    appRepo,
+    ideRepo,
+    interventionService,
+    llm,
+    interventionState,
+    interventionPolicy,
+  } = deps;
 
   async function checkTelemetry(state: TState): Promise<Partial<TState>> {
     const now = Date.now();
@@ -31,8 +38,10 @@ function createNodes(deps: OrchestratorDeps) {
     const oneHourAgo = now - 60 * 60 * 1000;
 
     const entertainmentVideoMs = appRepo.getVideoConsumptionTotalByCategory(
-      oneHourAgo, now, 'entertainment'
-    )
+      oneHourAgo,
+      now,
+      "entertainment",
+    );
 
     const chromeTabCount = appRepo.getChromeTabCount(now - 60000) ?? 0;
     const activeApp = appRepo.getCurrentApp() ?? "Unknown";
@@ -46,13 +55,15 @@ function createNodes(deps: OrchestratorDeps) {
         ideRepo.getTodoComments(),
       ]);
 
-    const lastCommitMinutes = lastCommit ? Math.floor((now - lastCommit) / 60000): 999;
+    const lastCommitMinutes = lastCommit
+      ? Math.floor((now - lastCommit) / 60000)
+      : 999;
     const keystrokesLast5Min = keystrokes ?? 0;
 
     const shouldIntervene = interventionPolicy.shouldIntervene({
       lastCommitMinutes,
       chromeTabCount,
-      keystrokesLast5Min
+      keystrokesLast5Min,
     });
 
     logger.info(
@@ -75,20 +86,20 @@ function createNodes(deps: OrchestratorDeps) {
       gitDiffSummary: gitDiffSummary ?? "No changes",
       todoList: todoList ?? [],
       retrievedHistory: [],
-      entertainmentVideoMs
+      entertainmentVideoMs,
     };
   }
 
   async function retrieveMemoryNode(state: TState): Promise<Partial<TState>> {
-  const history = await retrieveMemory({
-    activeApp: state.activeApp,
-    recentFiles: state.recentFiles,
-    entertainmentVideoMs: state.entertainmentVideoMs,
-    commitCount: state.lastCommitMinutes < 999 ? 1 : 0,
-  });
+    const history = await retrieveMemory({
+      activeApp: state.activeApp,
+      recentFiles: state.recentFiles,
+      entertainmentVideoMs: state.entertainmentVideoMs,
+      commitCount: state.lastCommitMinutes < 999 ? 1 : 0,
+    });
 
-  return { retrievedHistory: history };
-}
+    return { retrievedHistory: history };
+  }
 
   async function buildPrompt(state: TState): Promise<Partial<TState>> {
     const entMin = Math.floor(state.entertainmentVideoMs / 60000);
@@ -167,7 +178,7 @@ function createOrchestrator(deps: OrchestratorDeps) {
     .addNode("intervene", callLlama)
     .addEdge(START, "check")
     .addConditionalEdges("check", (state) =>
-      state.shouldIntervene ? "retrieveMemory" : "__end__"
+      state.shouldIntervene ? "retrieveMemory" : "__end__",
     )
     .addEdge("retrieveMemory", "prompt")
     .addEdge("prompt", "intervene")
@@ -186,22 +197,22 @@ export function startOrchestrationLoop(deps: OrchestratorDeps) {
   cronJob = cron.schedule("*/30 * * * * *", async () => {
     try {
       await orchestrator.invoke({
-      chromeTabCount: 0,
-      lastCommitMinutes: 0,
-      keystrokesLast5Min: 0,
-      activeApp: "",
+        chromeTabCount: 0,
+        lastCommitMinutes: 0,
+        keystrokesLast5Min: 0,
+        activeApp: "",
 
-      entertainmentVideoMs: 0,
-      workVideoMs: 0,
+        entertainmentVideoMs: 0,
+        workVideoMs: 0,
 
-      shouldIntervene: false,
-      interventionPrompt: undefined,
+        shouldIntervene: false,
+        interventionPrompt: undefined,
 
-      recentFiles: [],
-      gitDiffSummary: "",
-      todoList: [],
-      retrievedHistory: [],
-    });
+        recentFiles: [],
+        gitDiffSummary: "",
+        todoList: [],
+        retrievedHistory: [],
+      });
     } catch (err) {
       logger.error({ err }, "Orchestration loop failed");
     }

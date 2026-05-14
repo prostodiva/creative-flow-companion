@@ -1,4 +1,3 @@
-
 export interface SensorHealth {
   name: string;
   status: "ok" | "error" | "idle";

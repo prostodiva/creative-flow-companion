@@ -1,6 +1,6 @@
 import { Ollama } from "@langchain/ollama";
 import { ILlmClient } from "../../domain/ports/out/ILlmClient.js";
-import { config } from "../../infrastructure/config.js"
+import { config } from "../../infrastructure/config.js";
 
 export class OllamaClient implements ILlmClient {
   private llm: Ollama;
