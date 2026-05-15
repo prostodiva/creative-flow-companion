@@ -1,10 +1,14 @@
 # System Overview - what exists and how it connects
 
-* explanation
-* Mermaid diagrams
-* subsystem responsibilities
-* tradeoffs
-* future improvements
+## explanation
+A telemetry-driven AI engineering mentor with:
+    - activity tracking
+    - behavioral pattern analysis
+    - RAG memory
+    - local LLaMA integration
+    - contextual coaching
+    - developer workflow intelligence
+
 
 ## Flow:
     Main (entry point) boots the process and runs four independent loops simultaneously:
@@ -29,7 +33,7 @@
         - retrieve the result from chromadb
         - call LLaMMa LLM, sent a prompt;
          ↓
-    4. Session logger
+    4. Session logger + SessionSchedule
         SessionLogger = WHAT happens
         SessionScheduler = WHEN it happens 
         The session logger layer converts low-level telemetry into long-term semantic memory.
