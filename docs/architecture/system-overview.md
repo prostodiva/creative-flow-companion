@@ -12,7 +12,7 @@ A telemetry-driven AI engineering mentor with:
 
 ## Flow:
     Main (entry point) boots the process and runs four independent loops simultaneously:
-    1. Sensor polling loop(frequency - 1 sec) - continuously collects telemetry -> has access to IAppRepo(Insert raw only)
+    1. Sensor polling loop(frequency - 2 sec) - continuously collects telemetry -> has access to IAppRepo(Insert raw only)
         A primary architectural rule for embedded or data-collection systems is to separate the control processes for sensors from the data-processing processes.
          ↓
     2. Enricher interval(frequency - 30 sec) — continuously classifies raw → categorized -> has access to IAppRepo(read raw, update category); uses four policies:
@@ -23,7 +23,7 @@ A telemetry-driven AI engineering mentor with:
          ↓
     30-second enricher acts as the consumer in a Process Pipeline pattern. In this pattern, data is processed through a sequence of transformations to prevent the system from dropping incoming data
          ↓
-    3. Orchestrator cron(frequency - 30 min) - periodically analyzes telemetry -> reads IAppRepo (READ categorized data only)
+    3. Orchestrator cron(frequency - 30 sec) - periodically analyzes telemetry -> reads IAppRepo (READ categorized data only)
         every 30 sec cron work:
         - reads SQLite via IAppRepo + IIdeRepo
         - queries memory systems(SQLite - activity history, ChromaDB- semantic memory); has ai pipeline(the workflow what it needs to do)
@@ -37,7 +37,7 @@ A telemetry-driven AI engineering mentor with:
         SessionLogger = WHAT happens
         SessionScheduler = WHEN it happens 
         The session logger layer converts low-level telemetry into long-term semantic memory.
-        Session logger cron - periodically summarizes long-term memory -> reads IAppRepo -> writes embeddings/summaries to ChromaDB
+        Session schedule cron - periodically summarizes long-term memory -> reads IAppRepo -> writes embeddings/summaries to ChromaDB
 
         Key principle: write fast, enrich asynchronously, read clean.
         Command Query Responsibility Segregation (CQRS) pattern

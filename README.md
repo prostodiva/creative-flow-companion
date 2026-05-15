@@ -26,6 +26,9 @@ Creative Flow Companion is designed to function as an AI-native engineering comp
 ### Architecture
 [System Architecture](/docs/architecture/system-overview.md)
 
+### Diagrams
+[Diagrams](./diagrams/)
+
 ### Learning Roadmap
 [Learning Roadmap](/docs/learning/learning-roadmap.md)
 

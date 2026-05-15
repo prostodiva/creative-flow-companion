@@ -52,7 +52,7 @@ The app launches multiple independent long-running loops(4 run simultaneously):
 1. Sensor polling loop - continuously collects telemetry
 2. Enricher interval — continuously classifies raw → categorized
 3. Orchestrator cron - periodically analyzes telemetry
-4. Session logger cron - periodically summarizes long-term memory
+4. Session scheduler cron - periodically summarizes long-term memory
 
 
 ## Follow-up questions:

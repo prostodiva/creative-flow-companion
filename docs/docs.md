@@ -3,6 +3,9 @@
 ### Setup 
 [Setup](setup_and_workflow/setup.md)   
 
+### Diagrams
+[Diagrams](./diagrams/)
+
 ### Architecture
 [System Overview - What exists and how it connects?](architecture/system-overview.md)   
 [Data Flow - How information moves](architecture/data-flow.md)   
