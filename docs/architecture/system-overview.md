@@ -93,3 +93,8 @@ Concrete class ok  → when the implementation is pure logic
 
 ## Subsystem Responsibilities
 
+[Main](../archaeology/main.md)
+[Sensor](../archaeology/app-activity-sensor.md)
+[Enricher](../archaeology/activity-enricher.md)
+[Orchestrator](../archaeology/orchestrator.md)
+[Session Scheduler & Session Logger](../archaeology/session-logger.md)
