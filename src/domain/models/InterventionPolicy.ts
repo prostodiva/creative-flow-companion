@@ -27,7 +27,7 @@ export class InterventionPolicy {
 
     // Long session with no checkpoint
     const isLongSessionNoCommit =
-      lastCommitMinutes > 120 &&
+      lastCommitMinutes > 60 &&
       keystrokesLast5Min === 0;
 
     return (
