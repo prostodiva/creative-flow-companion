@@ -27,7 +27,8 @@ export class InterventionPolicy {
 
     // Long session with no checkpoint
     const isLongSessionNoCommit =
-      lastCommitMinutes > 120;
+      lastCommitMinutes > 120 &&
+      keystrokesLast5Min === 0;
 
     return (
       isWatchingVideo     ||
