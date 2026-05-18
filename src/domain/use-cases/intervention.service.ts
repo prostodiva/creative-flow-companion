@@ -6,7 +6,8 @@ import { interventionsFired } from "../../infrastructure/metrics.js";
 import { Severity } from "../models/Severity.js";
 import { IIntervention, InterventionPayload } from "../ports/out/IInterventionService.js";
 import { execFile } from 'child_process'
-import { EmotionalMetadata, } from "../ports/out/InterventionPayload.js";
+import { EmotionalMetadata } from "../ports/out/InterventionPayload.js";
+import { speakWithPiper } from "../models/humanizer.js";
 
 
 export class InterventionService {
@@ -88,31 +89,21 @@ export class InterventionService {
     }
   }
 
-  // UI notification (short + clean)
-  notifier.notify({
-    title: "Flow Companion",
-    message: payload.notification.slice(0, 80),
-    sound: false,
-    wait: false,
-  });
+   // 1. UI — keep it factual
+    notifier.notify({
+      title: "Flow Companion",
+      message: payload.notification.slice(0, 80),
+      sound: false,
+      wait: false,
+    });
 
-  // Voice output (ONLY speech)
-  if (severity === "high") {
-   const rawSpeech = payload.speech;
-
-  const spoken = shapeForVoice(
-    humanizeSpeech(rawSpeech).slice(0, 120),
-    payload.tone ?? "calm"
-  );
-
-  execFile("say", [
-    "-v",
-    "Daniel",
-    "-r",
-    "155",
-    spoken,
-  ]);
-  }
+    // 2. Voice — only on high severity
+    if (severity === "high") {
+     speakWithPiper(payload.speech).catch(err => {
+      logger.warn({ err }, "Piper failed, using say fallback");
+      execFile("say", ["-v", "Samantha", payload.speech]);
+    });
+    }
 
   return intervention;
 }
@@ -120,20 +111,4 @@ export class InterventionService {
   get clientCount(): number {
     return this._clients.size;
   }
-}
-
-function humanizeSpeech(text: string) {
-  return text
-    .replace(/\./g, "...")
-    .replace(/ - /g, ", ")
-    .replace(/,/g, ", ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function shapeForVoice(text: string, tone: string) {
-  if (tone === "calm") return text.replace(/\./g, "...");
-  if (tone === "sharp") return text.toUpperCase();
-  if (tone === "urgent") return text + " now";
-  return text;
 }

@@ -27,7 +27,7 @@ export function getInterventionSignal(params: {
   }
 
   if (
-    lastCommitMinutes > 20 &&
+    lastCommitMinutes > 5 &&
     keystrokesLast5Min === 0
   ) {
     return "paralysis";
@@ -41,7 +41,7 @@ export function getInterventionSignal(params: {
   }
 
   if (
-    lastCommitMinutes > 60 &&
+    lastCommitMinutes > 5 &&
     keystrokesLast5Min === 0
   ) {
     return "long_session";

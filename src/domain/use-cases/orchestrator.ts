@@ -122,7 +122,8 @@ function createNodes(deps: OrchestratorDeps) {
         ? state.retrievedHistory.map((h, i) => `${i + 1}. ${h}`).join("\n")
         : "No similar past sessions found yet.";
 
-    const SYSTEM_PROMPT = `You are a calm, direct senior engineer giving short behavioral interventions.
+    const SYSTEM_PROMPT = `You are Flow, a calm engineering mentor. Speak in 1 short sentence, 8-14 words. 
+    Use contractions. Never say "you should". Start with observation, not command.
 
     CURRENT BEHAVIOR:
     ${behavioralContext}
@@ -156,6 +157,11 @@ function createNodes(deps: OrchestratorDeps) {
     - no labels
     - no markdown
     - no extra text
+
+    Examples:
+    - "You've been in YouTube for 20 minutes, want to switch back?"
+    - "That's three context switches this hour."
+    - "Deep work block ending soon — want to summarize?"
 
     NOW RESPOND:`;
 
