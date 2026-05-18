@@ -159,23 +159,23 @@ export class AppActivitySensor extends Sensor {
       return frontApp & "|||" & winTitle & "|||" & tabUrl & "|||" & isFull & "|||" & tabCount & "|||" & isAudible
     `;
 
-    try {
-      const { stdout } = await execFileAsync("osascript", ["-e", script]);
-      const parts = stdout.trim().split("|||");
+   try {
+  const { stdout } = await execFileAsync("osascript", ["-e", script]);
+    const parts = stdout.trim().split("|||");
 
-      const app = parts[0] ?? "unknown";
-      const title = parts[1] ?? "";
-      const url = parts[2] ?? "";
-      const fullStr = parts[3] ?? "false";
-      const tabCountStr = parts[4] ?? "0";
-      const audStr = parts[5] ?? "false";
+    const audStr      = parts[parts.length - 1] ?? "false"
+    const tabCountStr = parts[parts.length - 2] ?? "0"
+    const fullStr     = parts[parts.length - 3] ?? "false"
+    const url         = parts[parts.length - 4] ?? ""
+    const app         = parts[0] ?? "unknown"
+    const title       = parts.slice(1, parts.length - 4).join("|||")
 
-      let domain: string | null = null;
-      if (url && url !== "missing value") {
-        try {
-          domain = new URL(url).hostname.replace("www.", "");
-        } catch {}
-      }
+    let domain: string | null = null;
+    if (url && url !== "missing value") {
+      try {
+        domain = new URL(url).hostname.replace("www.", "");
+      } catch {}
+    }
 
       return {
         app,
