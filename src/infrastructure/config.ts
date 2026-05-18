@@ -23,7 +23,7 @@ const ConfigSchema = z.object({
   //testing
   INTERVENTION_COOLDOWN_MS: z.number().default(15 * 1000), 
   TAB_OVERLOAD_THRESHOLD: z.number().default(10),
-  COMMIT_IDLE_MINUTES: z.number().default(30),
+  COMMIT_IDLE_MINUTES: z.number().default(30),  // 30 minutes no commits
   VIDEO_IDLE_MINUTES: z.number().default(30),
   CHROMA_URL: z.string().url().default("http://localhost:8000"),
   SESSION_WINDOW_MS: z.number().default(30 * 60 * 1000),

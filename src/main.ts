@@ -45,7 +45,7 @@ const enricher = new ActivityEnricher(appRepo, llm);
 const interventionState = new InterventionState(
   config.INTERVENTION_COOLDOWN_MS,
 );
-const interventionPolicy = new InterventionPolicy(interventionState);
+const interventionPolicy = new InterventionPolicy();
 const summarizer = new SessionLogger(
   ideRepo,
   appRepo,

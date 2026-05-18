@@ -64,6 +64,7 @@ function createNodes(deps: OrchestratorDeps) {
       lastCommitMinutes,
       chromeTabCount,
       keystrokesLast5Min,
+      entertainmentVideoMs 
     });
 
     logger.info(
@@ -116,33 +117,33 @@ function createNodes(deps: OrchestratorDeps) {
 
     const SYSTEM_PROMPT = `You are a blunt senior engineer. One line only. No explanations.
 
-                          CURRENT BEHAVIOR:
-                          ${behavioralContext}
+    CURRENT BEHAVIOR:
+    ${behavioralContext}
 
-                          Active app: ${state.activeApp}
-                          Recent files: ${state.recentFiles.join(', ') || 'none'}
-                          Git status: ${state.gitDiffSummary}
-                          TODOs: ${state.todoList.slice(0, 2).join(' | ') || 'none'}
+    Active app: ${state.activeApp}
+    Recent files: ${state.recentFiles.join(', ') || 'none'}
+    Git status: ${state.gitDiffSummary}
+    TODOs: ${state.todoList.slice(0, 2).join(' | ') || 'none'}
 
-                          PAST PATTERNS:
-                          ${historyBlock}
+    PAST PATTERNS:
+    ${historyBlock}
 
-                          RULES:
-                          - Max 20 words
-                          - No newlines
-                          - No headers
-                          - No explanations
-                          - No questions
+    RULES:
+    - Max 20 words
+    - No newlines
+    - No headers
+    - No explanations
+    - No questions
 
-                          FORMAT — follow exactly:
-                          [feeling]. [diagnosis]: 15min sprint - [action]
+    FORMAT — follow exactly:
+    feeling. diagnosis: 15min sprint - action
 
-                          EXAMPLES:
-                          Commit anxiety again: 15min sprint - stage config.ts and push
-                          Stuck like last Tuesday: 15min sprint - delete one dead function
-                          Tutorial loop: 15min sprint - implement one thing from the video
+    EXAMPLES:
+    Commit anxiety again: 15min sprint - stage config.ts and push
+    Stuck like last Tuesday: 15min sprint - delete one dead function
+    Tutorial loop: 15min sprint - implement one thing from the video
 
-                          RESPOND WITH ONE LINE ONLY:`;
+    RESPOND WITH ONE LINE ONLY:`;
 
     return { interventionPrompt: SYSTEM_PROMPT };
   }
