@@ -2,7 +2,6 @@ export type InterventionSignal =
   | "watching_video"
   | "paralysis"
   | "research_spiral"
-  | "light_drift"
   | "long_session"
   | "none";
 
@@ -39,13 +38,6 @@ export function getInterventionSignal(params: {
     keystrokesLast5Min === 0
   ) {
     return "research_spiral";
-  }
-
-  if (
-    keystrokesLast5Min === 0 &&
-    lastCommitMinutes > 10
-    ) {
-    return "light_drift";
   }
 
   if (
