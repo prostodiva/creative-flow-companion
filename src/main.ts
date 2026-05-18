@@ -17,6 +17,7 @@ import { runMigrations } from "./infrastructure/db/migrate.js";
 import { logger } from "./infrastructure/logger.js";
 import { SessionScheduler } from "./infrastructure/SessionSchedular.js";
 import { SessionLogger } from "./domain/use-cases/sessionLogger.js";
+import { IdeSensor } from "./adapters/in/sensors/ide/ide.sensor.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 
@@ -41,6 +42,7 @@ const ideRepo = new IdeRepo(db);
 const interventionService = new InterventionService();
 const llm = new OllamaClient();
 const appSensor = new AppActivitySensor(appRepo);
+const ideSensor = new IdeSensor(ideRepo);
 const enricher = new ActivityEnricher(appRepo, llm);
 const interventionState = new InterventionState(
   config.INTERVENTION_COOLDOWN_MS,
@@ -55,8 +57,8 @@ const summarizer = new SessionLogger(
 const scheduler = new SessionScheduler(summarizer);
 
 interventionService.start();
-
 appSensor.start();
+ideSensor.start() 
 enricher.start();
 scheduler.start();
 
@@ -75,6 +77,9 @@ logger.info("Flow Agent Telemetry v2 ready");
 process.on("SIGINT", () => {
   logger.info("Shutting down...");
   appSensor.stop();
+  ideSensor.stop();
+  enricher.stop();
+  scheduler.stop();
   interventionService.stop()
   db.close();
   process.exit(0);
