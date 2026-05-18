@@ -5,6 +5,7 @@ import { logger } from "../../infrastructure/logger.js";
 import { interventionsFired } from "../../infrastructure/metrics.js";
 import { Severity } from "../models/Severity.js";
 import { IIntervention } from "../ports/out/IInterventionService.js";
+import { execFile } from 'child_process'
 
 export class InterventionService {
   private _wss: WebSocketServer | null = null;
@@ -87,6 +88,9 @@ export class InterventionService {
         wait: false,
       });
     }
+
+    // Uses macOS say command — speaks the intervention out loud
+    // execFile('say', [message.slice(0, 100)])
 
     return intervention;
   }

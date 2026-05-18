@@ -54,6 +54,7 @@ const summarizer = new SessionLogger(
 
 const scheduler = new SessionScheduler(summarizer);
 
+interventionService.start();
 
 appSensor.start();
 enricher.start();
@@ -68,7 +69,6 @@ startOrchestrationLoop({
   interventionPolicy,
 });
 
-interventionService.start();
 
 logger.info("Flow Agent Telemetry v2 ready");
 

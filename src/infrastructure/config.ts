@@ -18,14 +18,19 @@ const ConfigSchema = z.object({
       },
       { message: "OLLAMA_BASE_URL must be localhost or https://" },
     ),
-  OLLAMA_MODEL: z.string().default("llama3.2"),
-  INTERVENTION_COOLDOWN_MS: z.number().default(10 * 60 * 1000),
+  OLLAMA_MODEL: z.string().default("llama3.1"),
+  // INTERVENTION_COOLDOWN_MS: z.number().default(10 * 60 * 1000),
+  //testing
+  INTERVENTION_COOLDOWN_MS: z.number().default(15 * 1000), 
   TAB_OVERLOAD_THRESHOLD: z.number().default(10),
   COMMIT_IDLE_MINUTES: z.number().default(30),
   VIDEO_IDLE_MINUTES: z.number().default(30),
   CHROMA_URL: z.string().url().default("http://localhost:8000"),
   SESSION_WINDOW_MS: z.number().default(30 * 60 * 1000),
   SESSION_CRON_EXPR: z.string().default("0 */30 * * * *"),
+  //for debugging - 1 minute, every 60 sec
+  // SESSION_WINDOW_MS: z.number().default(60 * 1000),
+  // SESSION_CRON_EXPR: z.string().default("*/60 * * * *"),
 });
 
 export const config = ConfigSchema.parse({

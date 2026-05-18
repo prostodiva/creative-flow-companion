@@ -7,6 +7,7 @@ This file serves as an entry point for the program.
    opens SQLite under ~/.flow-agent/context.db,  
    validates/recreates a corrupt file, runs migrations,   
    constructs repos and services, starts the app activity sensor, 
+   starts InterventionService (for OS terminal notifications feedback)
    starts AppActivitySensor (writes raw only)
    starts ActivityEnricher (downstream classifier)
    registers two cron-driven background paths (orchestration + session logging),   
