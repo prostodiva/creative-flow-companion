@@ -10,13 +10,26 @@
 import { Severity } from "../../models/Severity.js";
 
 export interface IInterventionService {
-  fire(rule: string, severity: Severity, message: string): void;
+  fire(
+    rule: string,
+    severity: Severity,
+    payload: InterventionPayload
+
+  ): IIntervention;
+
+}
+
+export interface InterventionPayload {
+  speech: string;        // spoken via TTS (say)
+  notification: string;  // UI toast (node-notifier)
 }
 
 export interface IIntervention {
   id: string;
   rule: string;
   severity: Severity;
-  message: string;
   ts: number;
+
+  speech: string;
+  notification: string;
 }

@@ -4,6 +4,7 @@ import { existsSync, unlinkSync } from "fs";
 import os from "node:os";
 import path from "node:path";
 import { AppActivitySensor } from "./adapters/in/sensors/app-activity.sensor.js";
+import { IdeSensor } from "./adapters/in/sensors/ide/ide.sensor.js";
 import { OllamaClient } from "./adapters/out/OllamaClient.js";
 import { AppRepo } from "./adapters/out/repos/app.repo.js";
 import { IdeRepo } from "./adapters/out/repos/ide.repo.js";
@@ -12,12 +13,11 @@ import { InterventionState } from "./domain/models/InterventionState.js";
 import { ActivityEnricher } from "./domain/use-cases/activityEnricher.js";
 import { InterventionService } from "./domain/use-cases/intervention.service.js";
 import { startOrchestrationLoop } from "./domain/use-cases/orchestrator.js";
+import { SessionLogger } from "./domain/use-cases/sessionLogger.js";
 import { config } from "./infrastructure/config.js";
 import { runMigrations } from "./infrastructure/db/migrate.js";
 import { logger } from "./infrastructure/logger.js";
-import { SessionScheduler } from "./infrastructure/SessionSchedular.js";
-import { SessionLogger } from "./domain/use-cases/sessionLogger.js";
-import { IdeSensor } from "./adapters/in/sensors/ide/ide.sensor.js";
+import { SessionScheduler } from "./infrastructure/SessionScheduler.js";
 
 const DB_PATH = path.join(os.homedir(), ".flow-agent", "context.db");
 
@@ -44,6 +44,7 @@ const llm = new OllamaClient();
 const appSensor = new AppActivitySensor(appRepo);
 const ideSensor = new IdeSensor(ideRepo);
 const enricher = new ActivityEnricher(appRepo, llm);
+
 const interventionState = new InterventionState(
   config.INTERVENTION_COOLDOWN_MS,
 );

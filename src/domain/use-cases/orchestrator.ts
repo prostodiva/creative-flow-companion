@@ -13,6 +13,7 @@ import { IIdeRepo } from "../ports/out/IIdeRepo.js";
 import { IInterventionService } from "../ports/out/IInterventionService.js";
 import { ILlmClient } from "../ports/out/ILlmClient.js";
 import { retrieveMemory } from "./memoryRetriever.js";
+
 interface OrchestratorDeps {
   appRepo: IAppRepo;
   ideRepo: IIdeRepo;
@@ -23,6 +24,7 @@ interface OrchestratorDeps {
 }
 
 function createNodes(deps: OrchestratorDeps) {
+
   const {
     appRepo,
     ideRepo,
@@ -55,9 +57,7 @@ function createNodes(deps: OrchestratorDeps) {
         ideRepo.getTodoComments(),
       ]);
 
-    const lastCommitMinutes = lastCommit
-      ? Math.floor((now - lastCommit) / 60000)
-      : 999;
+    const lastCommitMinutes = lastCommit ? Math.floor((now - lastCommit) / 60000) : 999;
     const keystrokesLast5Min = keystrokes ?? 0;
 
     const shouldIntervene = interventionPolicy.shouldIntervene({
@@ -115,7 +115,7 @@ function createNodes(deps: OrchestratorDeps) {
         ? state.retrievedHistory.map((h, i) => `${i + 1}. ${h}`).join("\n")
         : "No similar past sessions found yet.";
 
-    const SYSTEM_PROMPT = `You are a blunt senior engineer. One line only. No explanations.
+    const SYSTEM_PROMPT = `You are a calm, direct senior engineer giving short behavioral interventions.
 
     CURRENT BEHAVIOR:
     ${behavioralContext}
@@ -128,31 +128,45 @@ function createNodes(deps: OrchestratorDeps) {
     PAST PATTERNS:
     ${historyBlock}
 
+    TASK:
+
+    Generate two outputs:
+
+    1) speech:
+    - natural spoken American English
+    - max 20 words
+    - one sentence
+    - must feel human, not formatted
+
+    2) notification:
+    - ultra short
+    - max 8 words
+    - no punctuation needed
+    - readable at a glance
+
     RULES:
-    - Max 20 words
-    - No newlines
-    - No headers
-    - No explanations
-    - No questions
 
-    FORMAT — follow exactly:
-    feeling. diagnosis: 15min sprint - action
+    - no labels
+    - no markdown
+    - no extra text
 
-    EXAMPLES:
-    Commit anxiety again: 15min sprint - stage config.ts and push
-    Stuck like last Tuesday: 15min sprint - delete one dead function
-    Tutorial loop: 15min sprint - implement one thing from the video
-
-    RESPOND WITH ONE LINE ONLY:`;
+    NOW RESPOND:`;
 
     return { interventionPrompt: SYSTEM_PROMPT };
   }
 
   async function callLlama(state: TState): Promise<Partial<TState>> {
     if (!state.interventionPrompt) return {};
-    if (!interventionState.canFire()) return {};
+
+    if (!interventionState.canFire()) {
+      logger.debug({
+        remainingMs: interventionState.remainingCooldownMs()
+      }, "Cooldown active");
+      return {};
+    }
 
     let response: string;
+
     try {
       response = await llm.invoke(state.interventionPrompt);
     } catch (e) {
@@ -162,10 +176,20 @@ function createNodes(deps: OrchestratorDeps) {
 
     if (!response?.trim()) return {};
 
+    const speech = response.replace(/^"|"$/g, "").trim();
+    const firstSentence = speech.split(".")[0] ?? speech;
+    const notification = firstSentence.split(",")[0] ?? firstSentence;
+    const finalNotification = notification.slice(0, 60);
+
+    interventionService.fire("trigger", "high", {
+      speech,
+      notification: finalNotification,
+    });
+
+    interventionState.markFired();
+
     logger.warn({ response }, "FLOW INTERVENTION FIRED");
 
-    interventionService.fire("trigger", "high", response);
-    interventionState.markFired();
     return {};
   }
 

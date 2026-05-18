@@ -5,8 +5,8 @@
 
 import cron from "node-cron";
 
-import { logger } from "../infrastructure/logger.js";
-import { config } from "../infrastructure/config.js";
+import { config } from "./config.js";
+import { logger } from "./logger.js";
 
 import { SessionLogger } from "../domain/use-cases/sessionLogger.js";
 

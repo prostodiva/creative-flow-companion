@@ -57,43 +57,58 @@ export class InterventionService {
     });
   }
 
-  fire(rule: string, severity: Severity, message: string): IIntervention {
-    const intervention: IIntervention = {
-      id: randomUUID(),
-      rule,
-      severity,
-      message,
-      ts: Date.now(),
-    };
+  fire(rule: string, severity: Severity, payload: { speech: string; notification: string }): IIntervention {
+  const intervention: IIntervention = {
+  id: randomUUID(),
+  rule,
+  severity,
+  ts: Date.now(),
 
-    interventionsFired.inc({ rule, severity });
-    logger.info({ intervention }, "Intervention fired");
+  speech: payload.speech,
+  notification: payload.notification,
+};
 
-    // Broadcast to all connected WebSocket clients
-    const payload = JSON.stringify(intervention);
-    for (const ws of this._clients) {
-      try {
-        ws.send(payload);
-      } catch (err) {
-        logger.warn({ err }, "Failed to send intervention to client");
-      }
+  interventionsFired.inc({ rule, severity });
+  logger.info({ intervention }, "Intervention fired");
+
+  // Broadcast full payload to WebSocket clients
+  const payloadJson = JSON.stringify({
+    ...intervention,
+    speech: payload.speech,
+    notification: payload.notification,
+  });
+
+  for (const ws of this._clients) {
+    try {
+      ws.send(payloadJson);
+    } catch (err) {
+      logger.warn({ err }, "Failed to send intervention to client");
     }
-
-    // OS toast for high severity
-    if (severity === "high") {
-      notifier.notify({
-        title: " Flow Agent",
-        message: message.slice(0, 256),
-        sound: false,
-        wait: false,
-      });
-    }
-
-    // Uses macOS say command — speaks the intervention out loud
-    // execFile('say', [message.slice(0, 100)])
-
-    return intervention;
   }
+
+  // UI notification (short text only)
+  notifier.notify({
+    title: "Flow Companion",
+    message: payload.notification.slice(0, 80),
+    sound: false,
+    wait: false,
+  });
+
+  // Voice (speech only)
+  if (severity === "high") {
+    const spoken = payload.speech.slice(0, 120);
+
+    execFile("say", [
+      "-v",
+      "Alex",
+      "-r",
+      "155",
+      spoken,
+    ]);
+  }
+
+  return intervention;
+}
 
   get clientCount(): number {
     return this._clients.size;
