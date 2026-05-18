@@ -57,26 +57,26 @@ export class InterventionService {
     });
   }
 
-  fire(rule: string, severity: Severity, payload: { speech: string; notification: string }): IIntervention {
-  const intervention: IIntervention = {
-  id: randomUUID(),
-  rule,
-  severity,
-  ts: Date.now(),
+  fire(
+  rule: string,
+  severity: Severity,
+  payload: { speech: string; notification: string }
+): IIntervention {
 
-  speech: payload.speech,
-  notification: payload.notification,
-};
+  const intervention: IIntervention = {
+    id: randomUUID(),
+    rule,
+    severity,
+    ts: Date.now(),
+    speech: payload.speech,
+    notification: payload.notification,
+  };
 
   interventionsFired.inc({ rule, severity });
   logger.info({ intervention }, "Intervention fired");
 
-  // Broadcast full payload to WebSocket clients
-  const payloadJson = JSON.stringify({
-    ...intervention,
-    speech: payload.speech,
-    notification: payload.notification,
-  });
+  // Broadcast to WebSocket clients
+  const payloadJson = JSON.stringify(intervention);
 
   for (const ws of this._clients) {
     try {
@@ -86,7 +86,7 @@ export class InterventionService {
     }
   }
 
-  // UI notification (short text only)
+  // UI notification (short + clean)
   notifier.notify({
     title: "Flow Companion",
     message: payload.notification.slice(0, 80),
@@ -94,13 +94,13 @@ export class InterventionService {
     wait: false,
   });
 
-  // Voice (speech only)
+  // Voice output (ONLY speech)
   if (severity === "high") {
-    const spoken = payload.speech.slice(0, 120);
+    const spoken = humanizeSpeech(payload.speech.slice(0, 120));
 
     execFile("say", [
       "-v",
-      "Alex",
+      "Daniel",
       "-r",
       "155",
       spoken,
@@ -113,4 +113,12 @@ export class InterventionService {
   get clientCount(): number {
     return this._clients.size;
   }
+}
+
+function humanizeSpeech(text: string) {
+  return text
+    .replace(/\./g, ",") // soften stops
+    .replace(/\bYou are\b/g, "You're")
+    .replace(/\s+/g, " ")
+    .trim();
 }

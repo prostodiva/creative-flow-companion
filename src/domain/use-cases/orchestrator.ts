@@ -13,6 +13,8 @@ import { IIdeRepo } from "../ports/out/IIdeRepo.js";
 import { IInterventionService } from "../ports/out/IInterventionService.js";
 import { ILlmClient } from "../ports/out/ILlmClient.js";
 import { retrieveMemory } from "./memoryRetriever.js";
+import { config } from "../../infrastructure/config.js";
+import { getInterventionSignal } from "../ports/out/InternventionSignals.js";
 
 interface OrchestratorDeps {
   appRepo: IAppRepo;
@@ -59,13 +61,18 @@ function createNodes(deps: OrchestratorDeps) {
 
     const lastCommitMinutes = lastCommit ? Math.floor((now - lastCommit) / 60000) : 999;
     const keystrokesLast5Min = keystrokes ?? 0;
-
-    const shouldIntervene = interventionPolicy.shouldIntervene({
+    
+    const signal = getInterventionSignal({
+      entertainmentVideoMs,
       lastCommitMinutes,
-      chromeTabCount,
       keystrokesLast5Min,
-      entertainmentVideoMs 
+      chromeTabCount,
+      commitIdleMinutes: config.COMMIT_IDLE_MINUTES,
+      tabThreshold: config.TAB_OVERLOAD_THRESHOLD,
     });
+
+    const shouldIntervene = interventionPolicy.shouldIntervene(signal);
+
 
     logger.info(
       {
@@ -228,6 +235,7 @@ let cronJob: cron.ScheduledTask | null = null;
 export function startOrchestrationLoop(deps: OrchestratorDeps) {
   const orchestrator = createOrchestrator(deps);
 
+  //set up for testing - 30 sec. change later to 10 minutes: 0 */10 * * * *
   cronJob = cron.schedule("*/30 * * * * *", async () => {
     try {
       await orchestrator.invoke({
