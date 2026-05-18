@@ -7,7 +7,7 @@ import { Severity } from "../models/Severity.js";
 import { IIntervention, InterventionPayload } from "../ports/out/IInterventionService.js";
 import { execFile } from 'child_process'
 import { EmotionalMetadata } from "../ports/out/InterventionPayload.js";
-import { speakWithPiper } from "../models/humanizer.js";
+import { speak } from "../models/humanizer.js";
 
 
 export class InterventionService {
@@ -99,11 +99,11 @@ export class InterventionService {
 
     // 2. Voice — only on high severity
     if (severity === "high") {
-     speakWithPiper(payload.speech).catch(err => {
-      logger.warn({ err }, "Piper failed, using say fallback");
-      execFile("say", ["-v", "Samantha", payload.speech]);
+    speak(payload.speech, payload).catch(err => {
+      logger.warn({ err }, "Neural TTS failed");
+      execFile("say", ["-v", "Ava", payload.speech]);
     });
-    }
+  }
 
   return intervention;
 }
