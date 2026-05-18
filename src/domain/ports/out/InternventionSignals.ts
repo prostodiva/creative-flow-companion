@@ -18,11 +18,10 @@ export function getInterventionSignal(params: {
     lastCommitMinutes,
     keystrokesLast5Min,
     chromeTabCount,
-    commitIdleMinutes,
     tabThreshold,
   } = params;
 
-  if (entertainmentVideoMs > 20 * 60 * 1000) {
+  if (entertainmentVideoMs > 1 * 60 * 1000) { // 1 minutes set for testing
     return "watching_video";
   }
 

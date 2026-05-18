@@ -23,7 +23,7 @@ const ConfigSchema = z.object({
   // INTERVENTION_COOLDOWN_MS: z.coerce.number().default(30 * 1000), //testing 30 sec
   TAB_OVERLOAD_THRESHOLD: z.coerce.number().default(10),
   COMMIT_IDLE_MINUTES: z.coerce.number().default(5), //later change to 30 minutes back
-  VIDEO_IDLE_MINUTES: z.coerce.number().default(30),
+  VIDEO_IDLE_MINUTES: z.coerce.number().default(1), //for testing 1 minute
   SESSION_WINDOW_MS: z.coerce.number().default(30 * 60 * 1000),
   CHROMA_URL: z.string().url().default("http://localhost:8000"),
   SESSION_CRON_EXPR: z.string().default("0 */30 * * * *"),

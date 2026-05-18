@@ -43,7 +43,7 @@ function toPiperSSML(text: string): string {
 export async function speak(text: string, meta: EmotionalMetadata): Promise<void> {
   const tone = meta.tone?? "calm";
   const rewritten = rewriteForSpeech(text, tone);
-  const forPiper = toPiperSSML(rewritten); // ← use it here
+  const forPiper = toPiperSSML(rewritten);
   const out = join(tmpdir(), `flow-${Date.now()}.wav`);
 
   try {
