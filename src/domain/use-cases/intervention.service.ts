@@ -4,8 +4,10 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { logger } from "../../infrastructure/logger.js";
 import { interventionsFired } from "../../infrastructure/metrics.js";
 import { Severity } from "../models/Severity.js";
-import { IIntervention } from "../ports/out/IInterventionService.js";
+import { IIntervention, InterventionPayload } from "../ports/out/IInterventionService.js";
 import { execFile } from 'child_process'
+import { EmotionalMetadata, } from "../ports/out/InterventionPayload.js";
+
 
 export class InterventionService {
   private _wss: WebSocketServer | null = null;
@@ -60,7 +62,7 @@ export class InterventionService {
   fire(
   rule: string,
   severity: Severity,
-  payload: { speech: string; notification: string }
+  payload:  InterventionPayload & EmotionalMetadata
 ): IIntervention {
 
   const intervention: IIntervention = {
@@ -96,15 +98,20 @@ export class InterventionService {
 
   // Voice output (ONLY speech)
   if (severity === "high") {
-    const spoken = humanizeSpeech(payload.speech.slice(0, 120));
+   const rawSpeech = payload.speech;
 
-    execFile("say", [
-      "-v",
-      "Daniel",
-      "-r",
-      "155",
-      spoken,
-    ]);
+  const spoken = shapeForVoice(
+    humanizeSpeech(rawSpeech).slice(0, 120),
+    payload.tone ?? "calm"
+  );
+
+  execFile("say", [
+    "-v",
+    "Daniel",
+    "-r",
+    "155",
+    spoken,
+  ]);
   }
 
   return intervention;
@@ -117,8 +124,16 @@ export class InterventionService {
 
 function humanizeSpeech(text: string) {
   return text
-    .replace(/\./g, ",") // soften stops
-    .replace(/\bYou are\b/g, "You're")
+    .replace(/\./g, "...")
+    .replace(/ - /g, ", ")
+    .replace(/,/g, ", ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function shapeForVoice(text: string, tone: string) {
+  if (tone === "calm") return text.replace(/\./g, "...");
+  if (tone === "sharp") return text.toUpperCase();
+  if (tone === "urgent") return text + " now";
+  return text;
 }

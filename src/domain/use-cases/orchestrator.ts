@@ -61,7 +61,7 @@ function createNodes(deps: OrchestratorDeps) {
 
     const lastCommitMinutes = lastCommit ? Math.floor((now - lastCommit) / 60000) : 999;
     const keystrokesLast5Min = keystrokes ?? 0;
-    
+
     const signal = getInterventionSignal({
       entertainmentVideoMs,
       lastCommitMinutes,
@@ -166,11 +166,11 @@ function createNodes(deps: OrchestratorDeps) {
     if (!state.interventionPrompt) return {};
 
     if (!interventionState.canFire()) {
-      logger.debug({
-        remainingMs: interventionState.remainingCooldownMs()
-      }, "Cooldown active");
-      return {};
-    }
+    logger.debug({
+      remainingMs: interventionState.remainingCooldownMs()
+    }, "Cooldown active - skipping LLM");
+    return {};
+  }
 
     let response: string;
 
@@ -194,8 +194,13 @@ function createNodes(deps: OrchestratorDeps) {
     });
 
     interventionState.markFired();
+    console.log("STATE INSTANCE ID", interventionState);
 
-    logger.warn({ response }, "FLOW INTERVENTION FIRED");
+    logger.warn({
+      canFire: interventionState.canFire(),
+      remaining: interventionState.remainingCooldownMs()
+    });
+    
 
     return {};
   }

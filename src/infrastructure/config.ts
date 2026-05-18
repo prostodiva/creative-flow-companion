@@ -19,8 +19,8 @@ const ConfigSchema = z.object({
       { message: "OLLAMA_BASE_URL must be localhost or https://" },
     ),
   OLLAMA_MODEL: z.string().default("llama3.1"),
-  // INTERVENTION_COOLDOWN_MS: z.coerce.number().default(10 * 60 * 1000),
-  INTERVENTION_COOLDOWN_MS: z.coerce.number().default(30 * 1000), //testing 30 sec
+  INTERVENTION_COOLDOWN_MS: z.coerce.number().int().min(5000).default(10 * 60 * 1000),
+  // INTERVENTION_COOLDOWN_MS: z.coerce.number().default(30 * 1000), //testing 30 sec
   TAB_OVERLOAD_THRESHOLD: z.coerce.number().default(10),
   COMMIT_IDLE_MINUTES: z.coerce.number().default(10), //later change to 30 minutes back
   VIDEO_IDLE_MINUTES: z.coerce.number().default(30),

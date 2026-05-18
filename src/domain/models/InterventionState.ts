@@ -1,7 +1,9 @@
 export class InterventionState {
   private lastInterventionTs = 0;
 
-  constructor(private readonly cooldownMs: number) {}
+  constructor(private readonly cooldownMs: number) {
+    console.log("InterventionState created", cooldownMs);
+  }
 
   canFire(now: number = Date.now()): boolean {
     return now - this.lastInterventionTs >= this.cooldownMs;
